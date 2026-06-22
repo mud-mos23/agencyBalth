@@ -37,11 +37,13 @@
                         <i class="bi bi-arrow-left-right"></i> Operations
                     </a>
                 </li>
+                {% if current_user.has_role('super_admin', 'admin_agence', 'comptable', 'secretaire') %}
                 <li class="menu-item">
                     <a class="menu-link {{ 'active' if request.endpoint in ('list_expenses', 'add_expense') }}" href="{{ url_for('list_expenses') }}">
                         <i class="bi bi-cash"></i> Depenses
                     </a>
                 </li>
+                {% endif %}
 
                 {% if current_user.has_role('super_admin', 'admin_agence', 'comptable', 'secretaire', 'guichetier') %}
                 <li class="menu-title mt-2">Finance</li>
