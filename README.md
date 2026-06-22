@@ -21,7 +21,7 @@ de gerer les depenses, la comptabilite, et de generer des rapports.
 - Bootstrap 5
 - CSS personnalise (style Odoo-like)
 
-## Installation
+## Installation (local)
 
 ```bash
 git clone https://github.com/mud-mos23/agencyBalth.git
@@ -31,6 +31,30 @@ python app.py
 ```
 
 Acces : http://localhost:5000
+
+## Deploiement sur cPanel (sous-domaine)
+
+1. **Dans cPanel > Domains** : creez un sous-domaine (ex: `app.votresite.com`) et pointez-le vers le dossier de l'application.
+
+2. **Dans cPanel > Setup Python App** :
+   - Python version : 3.8 ou superieur
+   - Application root : le dossier du sous-domaine
+   - Application URL : votre sous-domaine
+   - Application startup file : `passenger_wsgi.py`
+   - Application Entry point : `application`
+
+3. **Uploader les fichiers** via Git ou FTP dans le dossier du sous-domaine.
+
+4. **Installer les dependances** : cPanel le fera automatiquement, ou lancez :
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+5. **Securite** : Modifiez la `SECRET_KEY` dans l'application ou definissez la variable d'environnement.
+
+6. **Base de donnees** : Le fichier SQLite (`agence.db`) sera cree automatiquement au premier demarrage.
+
+> **Note** : Pour un environnement de production, configurez une variable d'environnement `SECRET_KEY` dans cPanel (Setup Python App > Environment variables).
 
 ## Comptes par defaut
 
