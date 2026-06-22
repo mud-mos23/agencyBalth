@@ -109,38 +109,34 @@ def dashboard():
     operations_week = query.filter(Operation.created_at >= week_ago).count()
     operations_month = query.filter(Operation.created_at >= month_ago).count()
 
-    total_amount_usd_today = db.session.query(db.func.sum(Operation.amount)).filter(
+    def filtered_base():
+        q = Operation.query
+        if user.role == 'guichetier':
+            q = q.filter_by(guichetier_id=user.id)
+        elif user.role != 'super_admin':
+            q = q.filter_by(agency_id=user.agency_id)
+        return q
+
+    total_amount_usd_today = filtered_base().filter(
         db.func.date(Operation.created_at) == today, Operation.currency == 'USD'
-    ).scalar() or 0
+    ).with_entities(db.func.sum(Operation.amount)).scalar() or 0
 
-    total_amount_fc_today = db.session.query(db.func.sum(Operation.amount)).filter(
+    total_amount_fc_today = filtered_base().filter(
         db.func.date(Operation.created_at) == today, Operation.currency == 'FC'
-    ).scalar() or 0
+    ).with_entities(db.func.sum(Operation.amount)).scalar() or 0
 
-    total_commission_usd_today = db.session.query(db.func.sum(Operation.commission_total)).filter(
+    total_commission_usd_today = filtered_base().filter(
         db.func.date(Operation.created_at) == today, Operation.currency == 'USD'
-    ).scalar() or 0
+    ).with_entities(db.func.sum(Operation.commission_total)).scalar() or 0
 
-    total_commission_fc_today = db.session.query(db.func.sum(Operation.commission_total)).filter(
+    total_commission_fc_today = filtered_base().filter(
         db.func.date(Operation.created_at) == today, Operation.currency == 'FC'
-    ).scalar() or 0
+    ).with_entities(db.func.sum(Operation.commission_total)).scalar() or 0
 
     pending_ops = query.filter_by(status='pending').count()
     validated_ops = query.filter_by(status='validated').count()
 
     recent_ops = query.order_by(Operation.created_at.desc()).limit(10).all()
-
-    expenses_month = db.session.query(db.func.sum(Expense.amount)).filter(
-        Expense.created_at >= month_ago
-    ).scalar() or 0
-
-    expenses_usd_month = db.session.query(db.func.sum(Expense.amount)).filter(
-        Expense.created_at >= month_ago, Expense.currency == 'USD'
-    ).scalar() or 0
-
-    expenses_fc_month = db.session.query(db.func.sum(Expense.amount)).filter(
-        Expense.created_at >= month_ago, Expense.currency == 'FC'
-    ).scalar() or 0
 
     return render_template('dashboard/index.html',
         operations_today=operations_today,
@@ -152,9 +148,7 @@ def dashboard():
         total_commission_fc_today=total_commission_fc_today,
         pending_ops=pending_ops,
         validated_ops=validated_ops,
-        recent_ops=recent_ops,
-        expenses_usd_month=expenses_usd_month,
-        expenses_fc_month=expenses_fc_month)
+        recent_ops=recent_ops)
 
 @app.route('/agences')
 @login_required
