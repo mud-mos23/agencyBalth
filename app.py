@@ -7,7 +7,7 @@ from flask_login import LoginManager, login_user, logout_user, login_required, c
 from werkzeug.utils import secure_filename
 
 from config import Config
-from models import db, User, Agency, OperationType, CommissionConfig, Operation, Expense, AccountingLog, VirtualStock
+from models import db, User, Agency, OperationType, CommissionConfig, Operation, Expense, AccountingLog, VirtualStock, CashBalance
 from forms import (LoginForm, AgencyForm, UserForm, OperationForm, CommissionForm, ExpenseForm, FilterForm)
 
 app = Flask(__name__)
@@ -422,6 +422,22 @@ def validate_operation(id):
         stock.current_balance += op.amount
     else:
         stock.current_balance -= op.amount
+
+    cash = CashBalance.query.filter_by(
+        agency_id=op.agency_id, currency=op.currency
+    ).first()
+    if not cash:
+        cash = CashBalance(
+            agency_id=op.agency_id,
+            currency=op.currency,
+            opening_balance=0.0,
+            current_balance=0.0
+        )
+        db.session.add(cash)
+    if op.direction == 'depot':
+        cash.current_balance -= op.amount
+    else:
+        cash.current_balance += op.amount
     db.session.commit()
     flash('Operation validee avec succes.', 'success')
     return redirect(url_for('list_operations'))
@@ -536,6 +552,37 @@ def virtual_stocks():
 
     stocks = query.order_by(VirtualStock.agency_id, VirtualStock.operation_type_id, VirtualStock.currency).all()
     return render_template('virtual_stocks.html', stocks=stocks, op_types=op_types)
+
+@app.route('/cash-balance', methods=['GET', 'POST'])
+@login_required
+@role_required('super_admin', 'admin_agence', 'secretaire')
+def cash_balance():
+    query = CashBalance.query
+    if current_user.role != 'super_admin':
+        query = query.filter_by(agency_id=current_user.agency_id)
+
+    if request.method == 'POST':
+        cash_id = request.form.get('cash_id', type=int)
+        opening = request.form.get('opening_balance', type=float)
+        cash = CashBalance.query.get_or_404(cash_id)
+        if current_user.role == 'super_admin' or cash.agency_id == current_user.agency_id:
+            cash.opening_balance = opening
+            cash.current_balance = opening
+            db.session.commit()
+            flash('Solde de caisse mis a jour.', 'success')
+        return redirect(url_for('cash_balance'))
+
+    agencies = Agency.query.filter_by(is_active=True).all() if current_user.role == 'super_admin' else [current_user.agency]
+    for a in agencies:
+        for cur in ('USD', 'FC'):
+            existing = CashBalance.query.filter_by(agency_id=a.id, currency=cur).first()
+            if not existing:
+                cb = CashBalance(agency_id=a.id, currency=cur, opening_balance=0.0, current_balance=0.0)
+                db.session.add(cb)
+    db.session.commit()
+
+    balances = query.order_by(CashBalance.agency_id, CashBalance.currency).all()
+    return render_template('cash_balance.html', balances=balances)
 
 @app.route('/comptabilite')
 @login_required
@@ -783,6 +830,14 @@ def init_db():
         secretaire.set_password('secretaire123')
         db.session.add(secretaire)
         db.session.commit()
+
+    if not CashBalance.query.first():
+        agency = Agency.query.first()
+        if agency:
+            for cur in ('USD', 'FC'):
+                cb = CashBalance(agency_id=agency.id, currency=cur, opening_balance=0.0, current_balance=0.0)
+                db.session.add(cb)
+            db.session.commit()
 
     if not VirtualStock.query.first():
         agency = Agency.query.first()

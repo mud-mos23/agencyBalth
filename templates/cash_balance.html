@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}Caisse / Liquidite{% endblock %}
+{% block control_panel %}
+<div class="o_control_panel">
+    <div class="breadcrumb"><a href="{{ url_for('dashboard') }}">Accueil</a> / <span>Caisse / Liquidite</span></div>
+    <h1 class="cp-title">Caisse / Liquidite</h1>
+</div>
+{% endblock %}
+{% block content %}
+<div class="o_stat_cards">
+    {% for b in balances %}
+    <div class="o_stat_card" style="cursor:default;">
+        <div class="stat-icon {% if b.current_balance >= 0 %}success{% else %}danger{% endif %}">
+            <i class="bi bi-cash-stack"></i>
+        </div>
+        <div class="stat-body">
+            <p class="stat-label">{{ b.agency.name }} - Caisse</p>
+            <h3 class="stat-value {% if b.current_balance >= 0 %}o_text_success{% else %}o_text_danger{% endif %}">
+                {% if b.currency == 'FC' %}{{ "%.0f"|format(b.current_balance) }} FC{% else %}${{ "%.2f"|format(b.current_balance) }}{% endif %}
+            </h3>
+            <small class="o_text_muted">
+                Ouverture: {% if b.currency == 'FC' %}{{ "%.0f"|format(b.opening_balance) }} FC{% else %}${{ "%.2f"|format(b.opening_balance) }}{% endif %}
+                <br>{{ b.currency }}
+            </small>
+        </div>
+        <div style="margin-left:auto;">
+            <button class="btn-o btn-o-secondary btn-o-sm" onclick="showEdit({{ b.id }}, '{{ b.agency.name }}', '{{ b.currency }}', {{ b.opening_balance }})">
+                <i class="bi bi-gear"></i>
+            </button>
+        </div>
+    </div>
+    {% else %}
+    <div class="o_card"><div class="o_card_body" style="text-align:center;padding:32px;color:var(--o-text-muted);">Aucune caisse</div></div>
+    {% endfor %}
+</div>
+
+<div class="modal fade" id="editModal" tabindex="-1">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content" style="border-radius:8px;border:1px solid var(--o-border);">
+            <form method="POST">
+                <div class="modal-header" style="border-bottom:1px solid var(--o-border);padding:12px 16px;">
+                    <h6 class="modal-title" style="font-weight:600;">Modifier le solde d'ouverture</h6>
+                </div>
+                <div class="modal-body" style="padding:16px;">
+                    <input type="hidden" name="cash_id" id="cash_id">
+                    <p style="font-size:13px;margin:0 0 8px;" id="cash_info"></p>
+                    <div class="o_field">
+                        <label>Nouveau solde d'ouverture</label>
+                        <input type="number" step="0.01" name="opening_balance" id="opening_balance" class="form-control" required>
+                    </div>
+                    <p style="font-size:12px;color:var(--o-text-muted);margin:4px 0 0;">Ceci reinitialisera le solde courant.</p>
+                </div>
+                <div class="modal-footer" style="border-top:1px solid var(--o-border);padding:8px 16px;">
+                    <button type="button" class="btn-o btn-o-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn-o btn-o-primary"><i class="bi bi-check-lg"></i> Enregistrer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+var editModal = new bootstrap.Modal(document.getElementById('editModal'));
+function showEdit(id, agency, currency, balance) {
+    document.getElementById('cash_id').value = id;
+    document.getElementById('cash_info').textContent = agency + ' - Caisse (' + currency + ')';
+    document.getElementById('opening_balance').value = balance;
+    editModal.show();
+}
+</script>
+{% endblock %}

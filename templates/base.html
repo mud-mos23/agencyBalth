@@ -51,6 +51,11 @@
                     </a>
                 </li>
                 <li class="menu-item">
+                    <a class="menu-link {{ 'active' if request.endpoint == 'cash_balance' }}" href="{{ url_for('cash_balance') }}">
+                        <i class="bi bi-cash-stack"></i> Caisse / Liquidite
+                    </a>
+                </li>
+                <li class="menu-item">
                     <a class="menu-link {{ 'active' if request.endpoint == 'accounting' }}" href="{{ url_for('accounting') }}">
                         <i class="bi bi-calculator"></i> Comptabilite
                     </a>
