@@ -82,8 +82,12 @@
             {% if current_user.has_role('super_admin', 'comptable', 'admin_agence', 'secretaire') %}
             <a href="{{ url_for('accounting') }}" class="btn-o btn-o-info"><i class="bi bi-calculator"></i> Comptabilite</a>
             {% endif %}
+            {% if current_user.has_role('super_admin', 'admin_agence', 'secretaire') %}
             <a href="{{ url_for('add_expense') }}" class="btn-o btn-o-warning"><i class="bi bi-cash"></i> Nouvelle depense</a>
+            {% endif %}
+            {% if current_user.has_role('super_admin', 'comptable', 'admin_agence', 'secretaire') %}
             <a href="{{ url_for('reports') }}" class="btn-o btn-o-secondary"><i class="bi bi-bar-chart"></i> Rapports</a>
+            {% endif %}
         </div>
     </div>
 </div>
