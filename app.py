@@ -96,7 +96,9 @@ def dashboard():
     user = current_user
     query = Operation.query
 
-    if user.role != 'super_admin':
+    if user.role == 'guichetier':
+        query = query.filter_by(guichetier_id=user.id)
+    elif user.role != 'super_admin':
         query = query.filter_by(agency_id=user.agency_id)
 
     today = datetime.utcnow().date()
@@ -287,7 +289,9 @@ def list_operations():
     form.agency_id.choices = [(0, 'Toutes')] + [(a.id, a.name) for a in agencies]
 
     query = Operation.query
-    if current_user.role != 'super_admin':
+    if current_user.role == 'guichetier':
+        query = query.filter_by(guichetier_id=current_user.id)
+    elif current_user.role != 'super_admin':
         query = query.filter_by(agency_id=current_user.agency_id)
 
     status = request.args.get('status')
