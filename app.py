@@ -784,6 +784,20 @@ def reports():
 def init_db():
     db.create_all()
 
+    import sqlite3
+    try:
+        conn = sqlite3.connect('agence.db')
+        c = conn.cursor()
+        for table, col in [('virtual_stocks', 'user_id'), ('cash_balances', 'user_id')]:
+            try:
+                c.execute(f'ALTER TABLE {table} ADD COLUMN {col} INTEGER REFERENCES users(id)')
+                conn.commit()
+            except sqlite3.OperationalError:
+                pass
+        conn.close()
+    except Exception:
+        pass
+
     if not OperationType.query.first():
         types = [
             OperationType(name='Orange Money', description='Transfert via Orange Money'),
