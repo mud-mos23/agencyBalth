@@ -121,3 +121,15 @@ class AccountingLog(db.Model):
     operation = db.relationship('Operation')
     expense = db.relationship('Expense')
     creator = db.relationship('User')
+
+class VirtualStock(db.Model):
+    __tablename__ = 'virtual_stocks'
+    id = db.Column(db.Integer, primary_key=True)
+    agency_id = db.Column(db.Integer, db.ForeignKey('agencies.id'), nullable=False)
+    operation_type_id = db.Column(db.Integer, db.ForeignKey('operation_types.id'), nullable=False)
+    currency = db.Column(db.String(3), default="USD")
+    opening_balance = db.Column(db.Float, default=0.0)
+    current_balance = db.Column(db.Float, default=0.0)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    agency = db.relationship('Agency')
+    operation_type = db.relationship('OperationType')

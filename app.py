@@ -7,7 +7,7 @@ from flask_login import LoginManager, login_user, logout_user, login_required, c
 from werkzeug.utils import secure_filename
 
 from config import Config
-from models import db, User, Agency, OperationType, CommissionConfig, Operation, Expense, AccountingLog
+from models import db, User, Agency, OperationType, CommissionConfig, Operation, Expense, AccountingLog, VirtualStock
 from forms import (LoginForm, AgencyForm, UserForm, OperationForm, CommissionForm, ExpenseForm, FilterForm)
 
 app = Flask(__name__)
@@ -403,6 +403,25 @@ def validate_operation(id):
         created_by=current_user.id
     )
     db.session.add(log2)
+
+    stock = VirtualStock.query.filter_by(
+        agency_id=op.agency_id,
+        operation_type_id=op.operation_type_id,
+        currency=op.currency
+    ).first()
+    if not stock:
+        stock = VirtualStock(
+            agency_id=op.agency_id,
+            operation_type_id=op.operation_type_id,
+            currency=op.currency,
+            opening_balance=0.0,
+            current_balance=0.0
+        )
+        db.session.add(stock)
+    if op.direction == 'depot':
+        stock.current_balance += op.amount
+    else:
+        stock.current_balance -= op.amount
     db.session.commit()
     flash('Operation validee avec succes.', 'success')
     return redirect(url_for('list_operations'))
@@ -475,6 +494,48 @@ def delete_commission(id):
     db.session.commit()
     flash('Commission desactivee.', 'success')
     return redirect(url_for('list_commissions'))
+
+@app.route('/stocks-virtuels', methods=['GET', 'POST'])
+@login_required
+@role_required('super_admin', 'admin_agence', 'secretaire')
+def virtual_stocks():
+    query = VirtualStock.query
+    if current_user.role != 'super_admin':
+        query = query.filter_by(agency_id=current_user.agency_id)
+
+    if request.method == 'POST':
+        stock_id = request.form.get('stock_id', type=int)
+        opening = request.form.get('opening_balance', type=float)
+        stock = VirtualStock.query.get_or_404(stock_id)
+        if current_user.role == 'super_admin' or stock.agency_id == current_user.agency_id:
+            stock.opening_balance = opening
+            stock.current_balance = opening
+            db.session.commit()
+            flash('Solde d ouverture mis a jour.', 'success')
+        return redirect(url_for('virtual_stocks'))
+
+    op_types = OperationType.query.filter_by(is_active=True).all()
+    agencies = Agency.query.filter_by(is_active=True).all() if current_user.role == 'super_admin' else [current_user.agency]
+
+    for ot in op_types:
+        for a in agencies:
+            for cur in ('USD', 'FC'):
+                existing = VirtualStock.query.filter_by(
+                    agency_id=a.id, operation_type_id=ot.id, currency=cur
+                ).first()
+                if not existing:
+                    vs = VirtualStock(
+                        agency_id=a.id,
+                        operation_type_id=ot.id,
+                        currency=cur,
+                        opening_balance=0.0,
+                        current_balance=0.0
+                    )
+                    db.session.add(vs)
+    db.session.commit()
+
+    stocks = query.order_by(VirtualStock.agency_id, VirtualStock.operation_type_id, VirtualStock.currency).all()
+    return render_template('virtual_stocks.html', stocks=stocks, op_types=op_types)
 
 @app.route('/comptabilite')
 @login_required
@@ -722,6 +783,21 @@ def init_db():
         secretaire.set_password('secretaire123')
         db.session.add(secretaire)
         db.session.commit()
+
+    if not VirtualStock.query.first():
+        agency = Agency.query.first()
+        if agency:
+            for ot in OperationType.query.filter_by(is_active=True).all():
+                for cur in ('USD', 'FC'):
+                    vs = VirtualStock(
+                        agency_id=agency.id,
+                        operation_type_id=ot.id,
+                        currency=cur,
+                        opening_balance=0.0,
+                        current_balance=0.0
+                    )
+                    db.session.add(vs)
+            db.session.commit()
 
 with app.app_context():
     init_db()

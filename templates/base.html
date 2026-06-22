@@ -46,6 +46,11 @@
                 {% if current_user.has_role('super_admin', 'admin_agence', 'comptable', 'secretaire') %}
                 <li class="menu-title mt-2">Finance</li>
                 <li class="menu-item">
+                    <a class="menu-link {{ 'active' if request.endpoint == 'virtual_stocks' }}" href="{{ url_for('virtual_stocks') }}">
+                        <i class="bi bi-wallet2"></i> Stocks virtuels
+                    </a>
+                </li>
+                <li class="menu-item">
                     <a class="menu-link {{ 'active' if request.endpoint == 'accounting' }}" href="{{ url_for('accounting') }}">
                         <i class="bi bi-calculator"></i> Comptabilite
                     </a>
