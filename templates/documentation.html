@@ -82,6 +82,7 @@
                         <li><strong>Operations</strong> - Liste + Creation + Validation + Rejet</li>
                         <li><strong>Depenses</strong> - Liste + Creation + Approbation</li>
                         <li><strong>Comptabilite</strong> - Toutes les ecritures de toutes les agences</li>
+                        <li><strong>Stocks virtuels</strong> - Soldes de tous les types et agences + reinitialisation</li>
                         <li><strong>Rapports</strong> - Statistiques globales et par agence</li>
                         <li><strong>Agences</strong> - Gestion complete (ajout, modification, desactivation)</li>
                         <li><strong>Utilisateurs</strong> - Gestion de tous les utilisateurs</li>
@@ -97,6 +98,7 @@
                         <li>Configurer les baremes de commission (pourcentage, montant fixe, plafonds)</li>
                         <li>Filtrer les donnees par agence dans toutes les pages</li>
                         <li>Voir les donnees de toutes les agences sans restriction</li>
+                        <li>Gerer les stocks virtuels (solde d'ouverture) pour toutes les agences</li>
                     </ul>
 
                     <h5>Compte par defaut</h5>
@@ -120,6 +122,7 @@
                         <li><strong>Operations</strong> - Liste (son agence) + Creation + Validation + Rejet</li>
                         <li><strong>Depenses</strong> - Liste (son agence) + Creation + Approbation</li>
                         <li><strong>Comptabilite</strong> - Ecritures de son agence</li>
+                        <li><strong>Stocks virtuels</strong> - Soldes de son agence + reinitialisation</li>
                         <li><strong>Rapports</strong> - Statistiques de son agence</li>
                         <li><strong>Agences</strong> - Consultation uniquement</li>
                         <li><strong>Utilisateurs</strong> - Gestion des utilisateurs de son agence</li>
@@ -136,6 +139,7 @@
                         <li>Consulter et configurer les commissions</li>
                         <li>Consulter les agences (lecture seule)</li>
                         <li>Filtrer les donnees par agence</li>
+                        <li>Gerer les stocks virtuels de son agence</li>
                     </ul>
 
                     <div class="warn-box">
@@ -158,6 +162,7 @@
                         <li><strong>Operations</strong> - Liste (son agence) + Creation + Validation + Rejet</li>
                         <li><strong>Depenses</strong> - Liste (son agence) + Creation + Approbation</li>
                         <li><strong>Comptabilite</strong> - Ecritures de son agence</li>
+                        <li><strong>Stocks virtuels</strong> - Soldes de son agence + reinitialisation</li>
                         <li><strong>Rapports</strong> - Statistiques de son agence</li>
                         <li><strong>Agences</strong> - Consultation uniquement</li>
                         <li><strong>Utilisateurs</strong> - Gestion des utilisateurs de son agence</li>
@@ -173,6 +178,7 @@
                         <li>Gerer les utilisateurs de son agence</li>
                         <li>Configurer les commissions</li>
                         <li>Consulter la comptabilite et les rapports</li>
+                        <li>Gerer les stocks virtuels de son agence</li>
                     </ul>
 
                     <div class="info-box">
@@ -309,6 +315,21 @@
                         <li>Liste de toutes les ecritures</li>
                     </ul>
                     <p><strong>Roles :</strong> Super Admin, Admin Agence, Comptable, Secretaire</p>
+                </div>
+            </div>
+
+            <div class="doc-sect">
+                <div class="doc-sect-header"><i class="bi bi-wallet2" style="color:var(--o-primary);"></i> Stocks virtuels</div>
+                <div class="doc-sect-body">
+                    <p>Suivi des soldes virtuels par type d'operation (Orange Money, Airtel Money, M-Pesa), devise (USD/FC) et agence.</p>
+                    <h6>Fonctionnement</h6>
+                    <ul>
+                        <li><strong>Depot (client)</strong> : Le stock augmente du montant de l'operation</li>
+                        <li><strong>Retrait (client)</strong> : Le stock diminue du montant de l'operation</li>
+                        <li>La mise a jour est automatique lors de la validation de l'operation</li>
+                        <li>Vous pouvez definir un <strong>solde d'ouverture</strong> en cliquant sur l'icone de reglage</li>
+                    </ul>
+                    <p><strong>Roles :</strong> Super Admin, Admin Agence, Secretaire</p>
                 </div>
             </div>
 
