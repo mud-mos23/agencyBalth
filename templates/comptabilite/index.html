@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block control_panel %}
+<div class="o_control_panel">
+    <div class="breadcrumb"><a href="{{ url_for('dashboard') }}">Accueil</a> / <span>Comptabilite</span></div>
+    <h1 class="cp-title">Comptabilite</h1>
+</div>
+{% endblock %}
+{% block content %}
+<div class="o_stat_cards">
+    <div class="o_stat_card">
+        <div class="stat-icon success"><i class="bi bi-arrow-down-circle"></i></div>
+        <div class="stat-body"><p class="stat-label">Entrees USD</p><h3 class="stat-value">${{ "%.2f"|format(total_entrees_usd) }}</h3></div>
+    </div>
+    <div class="o_stat_card">
+        <div class="stat-icon danger"><i class="bi bi-arrow-up-circle"></i></div>
+        <div class="stat-body"><p class="stat-label">Sorties USD</p><h3 class="stat-value">${{ "%.2f"|format(total_sorties_usd) }}</h3></div>
+    </div>
+    <div class="o_stat_card">
+        <div class="stat-icon primary"><i class="bi bi-wallet2"></i></div>
+        <div class="stat-body"><p class="stat-label">Solde USD</p><h3 class="stat-value">${{ "%.2f"|format(solde_usd) }}</h3></div>
+    </div>
+    <div class="o_stat_card">
+        <div class="stat-icon success"><i class="bi bi-arrow-down-circle"></i></div>
+        <div class="stat-body"><p class="stat-label">Entrees FC</p><h3 class="stat-value">{{ "%.0f"|format(total_entrees_fc) }} FC</h3></div>
+    </div>
+    <div class="o_stat_card">
+        <div class="stat-icon danger"><i class="bi bi-arrow-up-circle"></i></div>
+        <div class="stat-body"><p class="stat-label">Sorties FC</p><h3 class="stat-value">{{ "%.0f"|format(total_sorties_fc) }} FC</h3></div>
+    </div>
+    <div class="o_stat_card">
+        <div class="stat-icon primary"><i class="bi bi-wallet2"></i></div>
+        <div class="stat-body"><p class="stat-label">Solde FC</p><h3 class="stat-value">{{ "%.0f"|format(solde_fc) }} FC</h3></div>
+    </div>
+</div>
+
+<div class="o_card">
+    <div class="o_card_header"><i class="bi bi-funnel"></i> Filtres</div>
+    <div class="o_card_body">
+        <form method="GET" class="o_filter_bar">
+            {% if current_user.role in ('super_admin', 'admin_agence', 'secretaire') %}
+            <select name="agency_id" class="form-control" style="width:140px;padding:5px 10px;font-size:12px;border-radius:20px;">
+                <option value="">Toutes</option>
+                {% for a in agencies %}
+                <option value="{{ a.id }}" {{ 'selected' if request.args.get('agency_id')|int == a.id }}>{{ a.name }}</option>
+                {% endfor %}
+            </select>
+            {% endif %}
+            <input type="date" name="date_from" class="form-control" style="width:140px;padding:5px 10px;font-size:12px;border-radius:20px;" value="{{ request.args.get('date_from', '') }}">
+            <input type="date" name="date_to" class="form-control" style="width:140px;padding:5px 10px;font-size:12px;border-radius:20px;" value="{{ request.args.get('date_to', '') }}">
+            <button type="submit" class="btn-o btn-o-primary btn-o-sm"><i class="bi bi-search"></i> Filtrer</button>
+        </form>
+    </div>
+</div>
+
+<div class="o_card">
+    <div class="o_card_header"><i class="bi bi-journal-text"></i> Journal comptable</div>
+    <div class="o_card_body p-0">
+        <table class="o_list_view">
+            <thead><tr><th>Date</th><th>Type</th><th>Direction</th><th>Montant</th><th>Devise</th><th>Description</th><th>Par</th></tr></thead>
+            <tbody>
+                {% for log in logs %}
+                <tr>
+                    <td class="o_text_small">{{ log.created_at.strftime('%d/%m/%Y %H:%M') }}</td>
+                    <td><span class="o_badge info">{{ log.type|title }}</span></td>
+                    <td>{% if log.direction == 'entree' %}<span class="o_badge success">Entree</span>{% else %}<span class="o_badge danger">Sortie</span>{% endif %}</td>
+                    <td><strong>{% if log.currency == 'FC' %}{{ "%.0f"|format(log.amount) }} FC{% else %}${{ "%.2f"|format(log.amount) }}{% endif %}</strong></td>
+                    <td><span class="o_badge info">{{ log.currency }}</span></td>
+                    <td>{{ log.description }}</td>
+                    <td>{{ log.creator.full_name }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="7" style="text-align:center;padding:32px;color:var(--o-text-muted);"><i class="bi bi-journal-text" style="font-size:32px;display:block;margin-bottom:8px;"></i>Aucune entree comptable</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

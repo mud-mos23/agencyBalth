@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Agences{% endblock %}
+{% block control_panel %}
+<div class="o_control_panel">
+    <div class="breadcrumb"><a href="{{ url_for('dashboard') }}">Accueil</a> / <span>Agences</span></div>
+    <div class="o_flex_between">
+        <h1 class="cp-title">Agences</h1>
+        <div class="cp-actions"><a href="{{ url_for('add_agency') }}" class="btn-o btn-o-primary"><i class="bi bi-plus-lg"></i> Nouvelle agence</a></div>
+    </div>
+</div>
+{% endblock %}
+{% block content %}
+<div class="o_card">
+    <div class="o_card_body p-0">
+        <table class="o_list_view">
+            <thead>
+                <tr><th>Nom</th><th>Adresse</th><th>Telephone</th><th>Email</th><th>Statut</th><th class="o_action_buttons">Actions</th></tr>
+            </thead>
+            <tbody>
+                {% for agency in agencies %}
+                <tr>
+                    <td><strong>{{ agency.name }}</strong></td>
+                    <td>{{ agency.address or '-' }}</td>
+                    <td>{{ agency.phone or '-' }}</td>
+                    <td>{{ agency.email or '-' }}</td>
+                    <td>{% if agency.is_active %}<span class="o_badge success">Active</span>{% else %}<span class="o_badge warning">Inactive</span>{% endif %}</td>
+                    <td class="o_action_buttons">
+                        <a href="{{ url_for('edit_agency', id=agency.id) }}" class="btn-o btn-o-secondary btn-o-sm"><i class="bi bi-pencil"></i></a>
+                        <a href="{{ url_for('delete_agency', id=agency.id) }}" class="btn-o btn-o-danger btn-o-sm" onclick="return confirm('Desactiver cette agence?')"><i class="bi bi-trash"></i></a>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="6" style="text-align:center;padding:32px;color:var(--o-text-muted);"><i class="bi bi-building" style="font-size:32px;display:block;margin-bottom:8px;"></i>Aucune agence</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block control_panel %}
+<div class="o_control_panel">
+    <div class="breadcrumb"><a href="{{ url_for('dashboard') }}">Accueil</a> / <span>Operations</span></div>
+    <div class="o_flex_between">
+        <h1 class="cp-title">Operations</h1>
+        <div class="cp-actions"><a href="{{ url_for('add_operation') }}" class="btn-o btn-o-primary"><i class="bi bi-plus-lg"></i> Creer</a></div>
+    </div>
+</div>
+{% endblock %}
+{% block content %}
+<div class="o_card">
+    <div class="o_card_body">
+        <form method="GET" class="o_filter_bar">
+            <select name="status" class="form-control" style="width:140px;padding:5px 10px;font-size:12px;border-radius:20px;">
+                <option value="">Tous statuts</option>
+                <option value="pending" {{ 'selected' if request.args.get('status') == 'pending' }}>En attente</option>
+                <option value="validated" {{ 'selected' if request.args.get('status') == 'validated' }}>Valide</option>
+                <option value="rejected" {{ 'selected' if request.args.get('status') == 'rejected' }}>Rejete</option>
+            </select>
+            {% if current_user.role in ('super_admin', 'admin_agence', 'secretaire') %}
+            <select name="agency_id" class="form-control" style="width:140px;padding:5px 10px;font-size:12px;border-radius:20px;">
+                <option value="">Toutes agences</option>
+                {% for a in agencies %}
+                <option value="{{ a.id }}" {{ 'selected' if request.args.get('agency_id')|int == a.id }}>{{ a.name }}</option>
+                {% endfor %}
+            </select>
+            {% endif %}
+            <input type="date" name="date_from" class="form-control" style="width:140px;padding:5px 10px;font-size:12px;border-radius:20px;" value="{{ request.args.get('date_from', '') }}">
+            <input type="date" name="date_to" class="form-control" style="width:140px;padding:5px 10px;font-size:12px;border-radius:20px;" value="{{ request.args.get('date_to', '') }}">
+            <button type="submit" class="btn-o btn-o-primary btn-o-sm"><i class="bi bi-search"></i> Filtrer</button>
+        </form>
+    </div>
+</div>
+
+<div class="o_card">
+    <div class="o_card_body p-0">
+        <table class="o_list_view">
+            <thead>
+                <tr>
+                    <th>Reference</th><th>Agence</th><th>Type</th><th>Operation</th>
+                    <th>Client</th><th>Montant</th><th>Commission</th><th>Devise</th>
+                    <th>Statut</th><th>Date</th><th class="o_action_buttons">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for op in operations.items %}
+                <tr>
+                    <td><a href="{{ url_for('view_operation', id=op.id) }}" style="color:var(--o-primary);text-decoration:none;font-weight:500;">{{ op.reference }}</a></td>
+                    <td>{{ op.agency.name }}</td>
+                    <td>{{ op.operation_type.name }}</td>
+                    <td>{% if op.direction == 'depot' %}<span class="o_badge primary">Depot</span>{% else %}<span class="o_badge warning">Retrait</span>{% endif %}</td>
+                    <td>{{ op.client_name }}</td>
+                    <td><strong>{% if op.currency == 'FC' %}{{ "%.0f"|format(op.amount) }} FC{% else %}${{ "%.2f"|format(op.amount) }}{% endif %}</strong></td>
+                    <td>{% if op.currency == 'FC' %}{{ "%.0f"|format(op.commission_total) }} FC{% else %}${{ "%.2f"|format(op.commission_total) }}{% endif %}</td>
+                    <td><span class="o_badge info">{{ op.currency }}</span></td>
+                    <td>{% if op.status == 'validated' %}<span class="o_badge success">Valide</span>{% elif op.status == 'rejected' %}<span class="o_badge danger">Rejete</span>{% else %}<span class="o_badge warning">Attente</span>{% endif %}</td>
+                    <td class="o_text_small o_text_muted">{{ op.created_at.strftime('%d/%m/%Y') }}</td>
+                    <td class="o_action_buttons">
+                        <a href="{{ url_for('view_operation', id=op.id) }}" class="btn-o btn-o-secondary btn-o-sm"><i class="bi bi-eye"></i></a>
+                        {% if op.status == 'pending' and current_user.has_role('super_admin', 'admin_agence', 'comptable', 'secretaire') %}
+                        <a href="{{ url_for('validate_operation', id=op.id) }}" class="btn-o btn-o-success btn-o-sm" onclick="return confirm('Valider?')"><i class="bi bi-check-lg"></i></a>
+                        <a href="{{ url_for('reject_operation', id=op.id) }}" class="btn-o btn-o-danger btn-o-sm" onclick="return confirm('Rejeter?')"><i class="bi bi-x-lg"></i></a>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="11" style="text-align:center;padding:32px;color:var(--o-text-muted);"><i class="bi bi-inbox" style="font-size:32px;display:block;margin-bottom:8px;"></i>Aucune operation</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% if operations.pages > 1 %}
+    <div class="o_card_body" style="border-top:1px solid var(--o-border);">
+        <ul class="o_pagination">
+            {% for page in operations.iter_pages() %}
+            {% if page %}
+            <li class="page-item {{ 'active' if page == operations.page }}">
+                <a class="page-link" href="{{ url_for('list_operations', page=page, **request.args) }}">{{ page }}</a>
+            </li>
+            {% endif %}
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

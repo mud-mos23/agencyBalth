@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block control_panel %}
+<div class="o_control_panel">
+    <div class="breadcrumb"><a href="{{ url_for('dashboard') }}">Accueil</a> / <span>Tableau de bord</span></div>
+    <div class="o_flex_between">
+        <h1 class="cp-title">Tableau de bord</h1>
+        <div class="cp-actions"><a href="{{ url_for('add_operation') }}" class="btn-o btn-o-primary"><i class="bi bi-plus-lg"></i> Nouvelle operation</a></div>
+    </div>
+</div>
+{% endblock %}
+{% block content %}
+<div class="o_stat_cards">
+    <div class="o_stat_card">
+        <div class="stat-icon primary"><i class="bi bi-arrow-left-right"></i></div>
+        <div class="stat-body"><p class="stat-label">Aujourd'hui</p><h3 class="stat-value">{{ operations_today }}</h3><small class="o_text_muted">Operations</small></div>
+    </div>
+    <div class="o_stat_card">
+        <div class="stat-icon success"><i class="bi bi-currency-dollar"></i></div>
+        <div class="stat-body"><p class="stat-label">Montant USD</p><h3 class="stat-value">${{ "%.2f"|format(total_amount_usd_today) }}</h3><small class="o_text_muted">Total du jour</small></div>
+    </div>
+    <div class="o_stat_card">
+        <div class="stat-icon success"><i class="bi bi-currency-exchange"></i></div>
+        <div class="stat-body"><p class="stat-label">Montant FC</p><h3 class="stat-value">{{ "%.0f"|format(total_amount_fc_today) }} FC</h3><small class="o_text_muted">Total du jour</small></div>
+    </div>
+    <div class="o_stat_card">
+        <div class="stat-icon warning"><i class="bi bi-percent"></i></div>
+        <div class="stat-body"><p class="stat-label">Com. USD</p><h3 class="stat-value">${{ "%.2f"|format(total_commission_usd_today) }}</h3><small class="o_text_muted">Total du jour</small></div>
+    </div>
+    <div class="o_stat_card">
+        <div class="stat-icon warning"><i class="bi bi-percent"></i></div>
+        <div class="stat-body"><p class="stat-label">Com. FC</p><h3 class="stat-value">{{ "%.0f"|format(total_commission_fc_today) }} FC</h3><small class="o_text_muted">Total du jour</small></div>
+    </div>
+    <div class="o_stat_card">
+        <div class="stat-icon info"><i class="bi bi-clock"></i></div>
+        <div class="stat-body"><p class="stat-label">En attente</p><h3 class="stat-value">{{ pending_ops }}</h3><small class="o_text_muted">A valider</small></div>
+    </div>
+    <div class="o_stat_card">
+        <div class="stat-icon primary"><i class="bi bi-calendar-week"></i></div>
+        <div class="stat-body"><p class="stat-label">Cette semaine</p><h3 class="stat-value">{{ operations_week }}</h3></div>
+    </div>
+    <div class="o_stat_card">
+        <div class="stat-icon primary"><i class="bi bi-calendar-month"></i></div>
+        <div class="stat-body"><p class="stat-label">Ce mois</p><h3 class="stat-value">{{ operations_month }}</h3></div>
+    </div>
+</div>
+
+<div class="o_flex o_gap_4 o_mb_3">
+    <div class="o_card" style="flex:1;">
+        <div class="o_card_header">
+            <span><i class="bi bi-clock-history"></i> Operations recentes</span>
+            <a href="{{ url_for('list_operations') }}" class="btn-o btn-o-primary btn-o-sm">Voir tout</a>
+        </div>
+        <div class="o_card_body p-0">
+            <table class="o_list_view">
+                <thead>
+                    <tr><th>Reference</th><th>Client</th><th>Type</th><th>Operation</th><th>Montant</th><th>Commission</th><th>Devise</th><th>Statut</th><th>Date</th></tr>
+                </thead>
+                <tbody>
+                    {% for op in recent_ops %}
+                    <tr>
+                        <td><a href="{{ url_for('view_operation', id=op.id) }}" style="color:var(--o-primary);text-decoration:none;">{{ op.reference }}</a></td>
+                        <td>{{ op.client_name }}</td>
+                        <td>{{ op.operation_type.name }}</td>
+                        <td>{% if op.direction == 'depot' %}<span class="o_badge primary">Depot</span>{% else %}<span class="o_badge warning">Retrait</span>{% endif %}</td>
+                        <td><strong>{% if op.currency == 'FC' %}{{ "%.0f"|format(op.amount) }} FC{% else %}${{ "%.2f"|format(op.amount) }}{% endif %}</strong></td>
+                        <td>{% if op.currency == 'FC' %}{{ "%.0f"|format(op.commission_total) }} FC{% else %}${{ "%.2f"|format(op.commission_total) }}{% endif %}</td>
+                        <td><span class="o_badge info">{{ op.currency }}</span></td>
+                        <td>{% if op.status == 'validated' %}<span class="o_badge success">Valide</span>{% elif op.status == 'rejected' %}<span class="o_badge danger">Rejete</span>{% else %}<span class="o_badge warning">Attente</span>{% endif %}</td>
+                        <td class="o_text_muted o_text_small">{{ op.created_at.strftime('%d/%m/%Y %H:%M') }}</td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="9" style="text-align:center;padding:24px;color:var(--o-text-muted);">Aucune operation</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div class="o_card" style="width:260px;flex-shrink:0;">
+        <div class="o_card_header"><i class="bi bi-lightning"></i> Actions</div>
+        <div class="o_card_body" style="display:flex;flex-direction:column;gap:8px;">
+            <a href="{{ url_for('add_operation') }}" class="btn-o btn-o-primary"><i class="bi bi-plus-circle"></i> Nouvelle operation</a>
+            {% if current_user.has_role('super_admin', 'comptable', 'admin_agence', 'secretaire') %}
+            <a href="{{ url_for('accounting') }}" class="btn-o btn-o-info"><i class="bi bi-calculator"></i> Comptabilite</a>
+            {% endif %}
+            <a href="{{ url_for('add_expense') }}" class="btn-o btn-o-warning"><i class="bi bi-cash"></i> Nouvelle depense</a>
+            <a href="{{ url_for('reports') }}" class="btn-o btn-o-secondary"><i class="bi bi-bar-chart"></i> Rapports</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

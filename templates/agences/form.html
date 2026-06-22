@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}{{ title }}{% endblock %}
+{% block control_panel %}
+<div class="o_control_panel">
+    <div class="breadcrumb"><a href="{{ url_for('dashboard') }}">Accueil</a> / <a href="{{ url_for('list_agencies') }}">Agences</a> / <span>{{ title }}</span></div>
+    <h1 class="cp-title">{{ title }}</h1>
+</div>
+{% endblock %}
+{% block content %}
+<div class="o_form_sheet">
+    <div class="o_form_header"><h4 style="margin:0;font-weight:600;">{{ title }}</h4></div>
+    <div class="o_form_body">
+        <form method="POST">
+            {{ form.hidden_tag() }}
+            <div class="row">
+                <div class="col-md-6"><div class="o_field"><label>{{ form.name.label.text }}</label>{{ form.name(class="form-control") }}</div></div>
+                <div class="col-md-6"><div class="o_field"><label>{{ form.phone.label.text }}</label>{{ form.phone(class="form-control") }}</div></div>
+            </div>
+            <div class="o_field"><label>{{ form.email.label.text }}</label>{{ form.email(class="form-control") }}</div>
+            <div class="o_field"><label>{{ form.address.label.text }}</label>{{ form.address(class="form-control") }}</div>
+    </div>
+    <div class="o_form_footer">
+        <button type="submit" class="btn-o btn-o-primary"><i class="bi bi-check-lg"></i> Enregistrer</button>
+        <a href="{{ url_for('list_agencies') }}" class="btn-o btn-o-secondary">Annuler</a>
+    </div>
+    </form>
+</div>
+{% endblock %}

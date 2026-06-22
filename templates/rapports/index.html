@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block control_panel %}
+<div class="o_control_panel">
+    <div class="breadcrumb"><a href="{{ url_for('dashboard') }}">Accueil</a> / <span>Rapports</span></div>
+    <h1 class="cp-title">Rapports et statistiques</h1>
+</div>
+{% endblock %}
+{% block content %}
+<div class="o_card">
+    <div class="o_card_header"><i class="bi bi-funnel"></i> Filtres</div>
+    <div class="o_card_body">
+        <form method="GET" class="o_filter_bar">
+            <select name="period" class="form-control" style="width:140px;padding:5px 10px;font-size:12px;border-radius:20px;">
+                <option value="week" {{ 'selected' if period == 'week' }}>7 jours</option>
+                <option value="month" {{ 'selected' if period == 'month' }}>30 jours</option>
+                <option value="quarter" {{ 'selected' if period == 'quarter' }}>3 mois</option>
+                <option value="year" {{ 'selected' if period == 'year' }}>1 an</option>
+            </select>
+            {% if current_user.role in ('super_admin', 'admin_agence', 'secretaire') %}
+            <select name="agency_id" class="form-control" style="width:140px;padding:5px 10px;font-size:12px;border-radius:20px;">
+                <option value="">Toutes</option>
+                {% for a in agencies %}
+                <option value="{{ a.id }}" {{ 'selected' if request.args.get('agency_id')|int == a.id }}>{{ a.name }}</option>
+                {% endfor %}
+            </select>
+            {% endif %}
+            <button type="submit" class="btn-o btn-o-primary btn-o-sm"><i class="bi bi-search"></i> Generer</button>
+        </form>
+    </div>
+</div>
+
+<div class="o_stat_cards">
+    <div class="o_stat_card">
+        <div class="stat-icon primary"><i class="bi bi-arrow-left-right"></i></div>
+        <div class="stat-body"><p class="stat-label">Operations</p><h3 class="stat-value">{{ total_operations }}</h3></div>
+    </div>
+    <div class="o_stat_card">
+        <div class="stat-icon success"><i class="bi bi-currency-dollar"></i></div>
+        <div class="stat-body"><p class="stat-label">Total USD</p><h3 class="stat-value">${{ "%.2f"|format(total_amount_usd) }}</h3></div>
+    </div>
+    <div class="o_stat_card">
+        <div class="stat-icon success"><i class="bi bi-currency-exchange"></i></div>
+        <div class="stat-body"><p class="stat-label">Total FC</p><h3 class="stat-value">{{ "%.0f"|format(total_amount_fc) }} FC</h3></div>
+    </div>
+    <div class="o_stat_card">
+        <div class="stat-icon warning"><i class="bi bi-percent"></i></div>
+        <div class="stat-body"><p class="stat-label">Commissions</p><h3 class="stat-value">${{ "%.2f"|format(total_commission) }}</h3></div>
+    </div>
+    <div class="o_stat_card">
+        <div class="stat-icon danger"><i class="bi bi-cash"></i></div>
+        <div class="stat-body"><p class="stat-label">Depenses USD</p><h3 class="stat-value">${{ "%.2f"|format(expense_usd) }}</h3></div>
+    </div>
+    <div class="o_stat_card">
+        <div class="stat-icon danger"><i class="bi bi-cash"></i></div>
+        <div class="stat-body"><p class="stat-label">Depenses FC</p><h3 class="stat-value">{{ "%.0f"|format(expense_fc) }} FC</h3></div>
+    </div>
+</div>
+
+<div class="o_flex o_gap_4">
+    <div class="o_card" style="flex:1;">
+        <div class="o_card_header"><i class="bi bi-pie-chart"></i> Par type d'operation</div>
+        <div class="o_card_body p-0">
+            <table class="o_list_view">
+                <thead><tr><th>Type</th><th>Nombre</th><th>Montant</th></tr></thead>
+                <tbody>
+                    {% for item in by_type %}
+                    <tr><td>{{ item[0] }}</td><td>{{ item[1] }}</td><td><strong>${{ "%.2f"|format(item[2] or 0) }}</strong></td></tr>
+                    {% else %}<tr><td colspan="3" style="text-align:center;padding:24px;color:var(--o-text-muted);">Aucune donnee</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div class="o_card" style="flex:1;">
+        <div class="o_card_header"><i class="bi bi-building"></i> Par agence</div>
+        <div class="o_card_body p-0">
+            <table class="o_list_view">
+                <thead><tr><th>Agence</th><th>Nombre</th><th>Montant</th></tr></thead>
+                <tbody>
+                    {% for item in by_agency %}
+                    <tr><td>{{ item[0] }}</td><td>{{ item[1] }}</td><td><strong>${{ "%.2f"|format(item[2] or 0) }}</strong></td></tr>
+                    {% else %}<tr><td colspan="3" style="text-align:center;padding:24px;color:var(--o-text-muted);">Aucune donnee</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

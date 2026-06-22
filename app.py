@@ -1,0 +1,729 @@
+import os
+from datetime import datetime, timedelta
+from functools import wraps
+
+from flask import Flask, render_template, redirect, url_for, flash, request, jsonify, abort
+from flask_login import LoginManager, login_user, logout_user, login_required, current_user
+from werkzeug.utils import secure_filename
+
+from config import Config
+from models import db, User, Agency, OperationType, CommissionConfig, Operation, Expense, AccountingLog
+from forms import (LoginForm, AgencyForm, UserForm, OperationForm, CommissionForm, ExpenseForm, FilterForm)
+
+app = Flask(__name__)
+app.config.from_object(Config)
+db.init_app(app)
+
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = 'login'
+login_manager.login_message = 'Veuillez vous connecter pour acceder a cette page.'
+
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(int(user_id))
+
+def role_required(*roles):
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            if not current_user.has_role(*roles):
+                flash('Acces non autorise.', 'danger')
+                return redirect(url_for('dashboard'))
+            return f(*args, **kwargs)
+        return decorated_function
+    return decorator
+
+def inject_globals():
+    agencies = Agency.query.filter_by(is_active=True).all() if current_user.is_authenticated else []
+    return dict(agencies=agencies)
+
+app.context_processor(inject_globals)
+
+@app.route('/')
+@login_required
+def index():
+    return redirect(url_for('dashboard'))
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if current_user.is_authenticated:
+        return redirect(url_for('dashboard'))
+    form = LoginForm()
+    if form.validate_on_submit():
+        user = User.query.filter_by(username=form.username.data).first()
+        if user and user.check_password(form.password.data) and user.is_active:
+            login_user(user)
+            user.last_login = datetime.utcnow()
+            db.session.commit()
+            flash('Connecte avec succes.', 'success')
+            next_page = request.args.get('next')
+            return redirect(next_page or url_for('dashboard'))
+        flash("Nom d'utilisateur ou mot de passe incorrect.", 'danger')
+    return render_template('auth/login.html', form=form)
+
+@app.route('/logout')
+@login_required
+def logout():
+    logout_user()
+    flash('Deconnecte avec succes.', 'success')
+    return redirect(url_for('login'))
+
+@app.route('/profile', methods=['GET', 'POST'])
+@login_required
+def profile():
+    user = current_user
+    if request.method == 'POST':
+        user.full_name = request.form.get('full_name', user.full_name)
+        user.email = request.form.get('email', user.email)
+        user.phone = request.form.get('phone', user.phone)
+        password = request.form.get('password')
+        if password:
+            user.set_password(password)
+        db.session.commit()
+        flash('Profil mis a jour avec succes.', 'success')
+        return redirect(url_for('profile'))
+    return render_template('users/profile.html', user=user)
+
+@app.route('/documentation')
+@login_required
+def documentation():
+    return render_template('documentation.html')
+
+@app.route('/dashboard')
+@login_required
+def dashboard():
+    user = current_user
+    query = Operation.query
+
+    if user.role != 'super_admin':
+        query = query.filter_by(agency_id=user.agency_id)
+
+    today = datetime.utcnow().date()
+    week_ago = today - timedelta(days=7)
+    month_ago = today - timedelta(days=30)
+
+    operations_today = query.filter(db.func.date(Operation.created_at) == today).count()
+    operations_week = query.filter(Operation.created_at >= week_ago).count()
+    operations_month = query.filter(Operation.created_at >= month_ago).count()
+
+    total_amount_usd_today = db.session.query(db.func.sum(Operation.amount)).filter(
+        db.func.date(Operation.created_at) == today, Operation.currency == 'USD'
+    ).scalar() or 0
+
+    total_amount_fc_today = db.session.query(db.func.sum(Operation.amount)).filter(
+        db.func.date(Operation.created_at) == today, Operation.currency == 'FC'
+    ).scalar() or 0
+
+    total_commission_usd_today = db.session.query(db.func.sum(Operation.commission_total)).filter(
+        db.func.date(Operation.created_at) == today, Operation.currency == 'USD'
+    ).scalar() or 0
+
+    total_commission_fc_today = db.session.query(db.func.sum(Operation.commission_total)).filter(
+        db.func.date(Operation.created_at) == today, Operation.currency == 'FC'
+    ).scalar() or 0
+
+    pending_ops = query.filter_by(status='pending').count()
+    validated_ops = query.filter_by(status='validated').count()
+
+    recent_ops = query.order_by(Operation.created_at.desc()).limit(10).all()
+
+    expenses_month = db.session.query(db.func.sum(Expense.amount)).filter(
+        Expense.created_at >= month_ago
+    ).scalar() or 0
+
+    expenses_usd_month = db.session.query(db.func.sum(Expense.amount)).filter(
+        Expense.created_at >= month_ago, Expense.currency == 'USD'
+    ).scalar() or 0
+
+    expenses_fc_month = db.session.query(db.func.sum(Expense.amount)).filter(
+        Expense.created_at >= month_ago, Expense.currency == 'FC'
+    ).scalar() or 0
+
+    return render_template('dashboard/index.html',
+        operations_today=operations_today,
+        operations_week=operations_week,
+        operations_month=operations_month,
+        total_amount_usd_today=total_amount_usd_today,
+        total_amount_fc_today=total_amount_fc_today,
+        total_commission_usd_today=total_commission_usd_today,
+        total_commission_fc_today=total_commission_fc_today,
+        pending_ops=pending_ops,
+        validated_ops=validated_ops,
+        recent_ops=recent_ops,
+        expenses_usd_month=expenses_usd_month,
+        expenses_fc_month=expenses_fc_month)
+
+@app.route('/agences')
+@login_required
+@role_required('super_admin')
+def list_agencies():
+    agencies = Agency.query.all()
+    return render_template('agences/list.html', agencies=agencies)
+
+@app.route('/agences/ajouter', methods=['GET', 'POST'])
+@login_required
+@role_required('super_admin')
+def add_agency():
+    form = AgencyForm()
+    if form.validate_on_submit():
+        agency = Agency(
+            name=form.name.data,
+            address=form.address.data,
+            phone=form.phone.data,
+            email=form.email.data
+        )
+        db.session.add(agency)
+        db.session.commit()
+        flash('Agence creee avec succes.', 'success')
+        return redirect(url_for('list_agencies'))
+    return render_template('agences/form.html', form=form, title='Ajouter une agence')
+
+@app.route('/agences/modifier/<int:id>', methods=['GET', 'POST'])
+@login_required
+@role_required('super_admin')
+def edit_agency(id):
+    agency = Agency.query.get_or_404(id)
+    form = AgencyForm(obj=agency)
+    if form.validate_on_submit():
+        agency.name = form.name.data
+        agency.address = form.address.data
+        agency.phone = form.phone.data
+        agency.email = form.email.data
+        db.session.commit()
+        flash('Agence modifiee avec succes.', 'success')
+        return redirect(url_for('list_agencies'))
+    return render_template('agences/form.html', form=form, title="Modifier l'agence")
+
+@app.route('/agences/supprimer/<int:id>')
+@login_required
+@role_required('super_admin')
+def delete_agency(id):
+    agency = Agency.query.get_or_404(id)
+    agency.is_active = False
+    db.session.commit()
+    flash('Agence desactivee.', 'success')
+    return redirect(url_for('list_agencies'))
+
+@app.route('/utilisateurs')
+@login_required
+@role_required('super_admin', 'admin_agence', 'secretaire')
+def list_users():
+    if current_user.role == 'super_admin':
+        users = User.query.all()
+    else:
+        users = User.query.filter_by(agency_id=current_user.agency_id).all()
+    return render_template('users/list.html', users=users)
+
+@app.route('/utilisateurs/ajouter', methods=['GET', 'POST'])
+@login_required
+@role_required('super_admin', 'admin_agence', 'secretaire')
+def add_user():
+    form = UserForm()
+    if current_user.role in ('admin_agence', 'secretaire'):
+        form.agency_id.data = current_user.agency_id
+        form.agency_id.render_kw = {'disabled': True}
+
+    agencies = Agency.query.filter_by(is_active=True).all()
+    form.agency_id.choices = [(0, 'Aucune')] + [(a.id, a.name) for a in agencies]
+
+    if form.validate_on_submit():
+        user = User(
+            username=form.username.data,
+            full_name=form.full_name.data,
+            email=form.email.data,
+            phone=form.phone.data,
+            role=form.role.data,
+            agency_id=form.agency_id.data if form.agency_id.data != 0 else None
+        )
+        user.set_password(form.password.data)
+        db.session.add(user)
+        db.session.commit()
+        flash('Utilisateur cree avec succes.', 'success')
+        return redirect(url_for('list_users'))
+    return render_template('users/form.html', form=form, title='Ajouter un utilisateur')
+
+@app.route('/utilisateurs/modifier/<int:id>', methods=['GET', 'POST'])
+@login_required
+@role_required('super_admin', 'admin_agence', 'secretaire')
+def edit_user(id):
+    user = User.query.get_or_404(id)
+    form = UserForm(obj=user)
+    agencies = Agency.query.filter_by(is_active=True).all()
+    form.agency_id.choices = [(0, 'Aucune')] + [(a.id, a.name) for a in agencies]
+
+    if form.validate_on_submit():
+        user.username = form.username.data
+        user.full_name = form.full_name.data
+        user.email = form.email.data
+        user.phone = form.phone.data
+        user.role = form.role.data
+        user.agency_id = form.agency_id.data if form.agency_id.data != 0 else None
+        if form.password.data:
+            user.set_password(form.password.data)
+        db.session.commit()
+        flash('Utilisateur modifie avec succes.', 'success')
+        return redirect(url_for('list_users'))
+
+    form.agency_id.data = user.agency_id or 0
+    return render_template('users/form.html', form=form, title="Modifier l'utilisateur")
+
+@app.route('/utilisateurs/supprimer/<int:id>')
+@login_required
+@role_required('super_admin', 'admin_agence', 'secretaire')
+def delete_user(id):
+    user = User.query.get_or_404(id)
+    user.is_active = False
+    db.session.commit()
+    flash('Utilisateur desactive.', 'success')
+    return redirect(url_for('list_users'))
+
+@app.route('/operations')
+@login_required
+def list_operations():
+    page = request.args.get('page', 1, type=int)
+    form = FilterForm()
+    agencies = Agency.query.filter_by(is_active=True).all()
+    form.agency_id.choices = [(0, 'Toutes')] + [(a.id, a.name) for a in agencies]
+
+    query = Operation.query
+    if current_user.role != 'super_admin':
+        query = query.filter_by(agency_id=current_user.agency_id)
+
+    status = request.args.get('status')
+    agency_id = request.args.get('agency_id', type=int)
+    date_from = request.args.get('date_from')
+    date_to = request.args.get('date_to')
+
+    if status:
+        query = query.filter_by(status=status)
+    if agency_id:
+        query = query.filter_by(agency_id=agency_id)
+    if date_from:
+        query = query.filter(Operation.created_at >= datetime.strptime(date_from, '%Y-%m-%d'))
+    if date_to:
+        query = query.filter(Operation.created_at <= datetime.strptime(date_to, '%Y-%m-%d') + timedelta(days=1))
+
+    operations = query.order_by(Operation.created_at.desc()).paginate(
+        page=page, per_page=20, error_out=False)
+    return render_template('operations/list.html', operations=operations, form=form)
+
+@app.route('/operations/ajouter', methods=['GET', 'POST'])
+@login_required
+@role_required('super_admin', 'admin_agence', 'guichetier', 'secretaire')
+def add_operation():
+    form = OperationForm()
+    op_types = OperationType.query.filter_by(is_active=True).all()
+    form.operation_type_id.choices = [(t.id, t.name) for t in op_types]
+
+    if form.validate_on_submit():
+        op_type = OperationType.query.get(form.operation_type_id.data)
+        commission = calc_commission(form.operation_type_id.data, form.direction.data, form.amount.data)
+
+        ref = f"TRF-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}-{current_user.id}"
+
+        operation = Operation(
+            reference=ref,
+            agency_id=current_user.agency_id or 1,
+            guichetier_id=current_user.id,
+            operation_type_id=form.operation_type_id.data,
+            direction=form.direction.data,
+            client_name=form.client_name.data,
+            client_phone=form.client_phone.data,
+            currency=form.currency.data,
+            amount=form.amount.data,
+            commission_percentage=commission['percentage'],
+            commission_fixed=commission['fixed'],
+            commission_total=commission['total'],
+            total_amount=form.amount.data + commission['total'],
+            notes=form.notes.data,
+            status='pending'
+        )
+        db.session.add(operation)
+        db.session.commit()
+        flash(f'Operation creee avec succes. Reference: {ref}', 'success')
+        return redirect(url_for('list_operations'))
+    return render_template('operations/form.html', form=form, title='Nouvelle operation')
+
+def calc_commission(op_type_id, direction, amount):
+    configs = CommissionConfig.query.filter_by(
+        operation_type_id=op_type_id,
+        direction=direction,
+        is_active=True
+    ).all()
+
+    pct = 0
+    fixed = 0
+    for cfg in configs:
+        if cfg.min_amount and amount < cfg.min_amount:
+            continue
+        if cfg.max_amount and amount > cfg.max_amount:
+            continue
+        if cfg.percentage:
+            pct = cfg.percentage
+        if cfg.fixed_amount:
+            fixed = cfg.fixed_amount
+
+    total = (amount * pct / 100) + fixed
+    return {'percentage': pct, 'fixed': fixed, 'total': total}
+
+@app.route('/operations/valider/<int:id>')
+@login_required
+@role_required('super_admin', 'admin_agence', 'comptable', 'secretaire')
+def validate_operation(id):
+    op = Operation.query.get_or_404(id)
+    if op.status != 'pending':
+        flash('Cette operation a deja ete traitee.', 'warning')
+        return redirect(url_for('list_operations'))
+
+    op.status = 'validated'
+    op.validated_by = current_user.id
+    op.validated_at = datetime.utcnow()
+
+    log = AccountingLog(
+        agency_id=op.agency_id,
+        operation_id=op.id,
+        currency=op.currency,
+        type='commission',
+        direction='entree',
+        amount=op.commission_total,
+        description=f'Commission sur operation {op.reference}',
+        created_by=current_user.id
+    )
+    db.session.add(log)
+
+    log2 = AccountingLog(
+        agency_id=op.agency_id,
+        operation_id=op.id,
+        currency=op.currency,
+        type='transfert',
+        direction='sortie' if op.direction == 'depot' else 'entree',
+        amount=op.amount,
+        description=f"{'Depot' if op.direction == 'depot' else 'Retrait'} - {op.reference}",
+        created_by=current_user.id
+    )
+    db.session.add(log2)
+    db.session.commit()
+    flash('Operation validee avec succes.', 'success')
+    return redirect(url_for('list_operations'))
+
+@app.route('/operations/rejeter/<int:id>')
+@login_required
+@role_required('super_admin', 'admin_agence', 'comptable', 'secretaire')
+def reject_operation(id):
+    op = Operation.query.get_or_404(id)
+    op.status = 'rejected'
+    op.validated_by = current_user.id
+    op.validated_at = datetime.utcnow()
+    db.session.commit()
+    flash('Operation rejetee.', 'warning')
+    return redirect(url_for('list_operations'))
+
+@app.route('/operations/details/<int:id>')
+@login_required
+def view_operation(id):
+    op = Operation.query.get_or_404(id)
+    return render_template('operations/details.html', op=op)
+
+@app.route('/api/commission')
+@login_required
+def api_commission():
+    op_type_id = request.args.get('operation_type_id', type=int)
+    direction = request.args.get('direction')
+    amount = request.args.get('amount', type=float)
+    if not all([op_type_id, direction, amount]):
+        return jsonify({'percentage': 0, 'fixed': 0, 'total': 0})
+    commission = calc_commission(op_type_id, direction, amount)
+    return jsonify(commission)
+
+@app.route('/commissions')
+@login_required
+@role_required('super_admin', 'admin_agence', 'secretaire')
+def list_commissions():
+    configs = CommissionConfig.query.all()
+    return render_template('commissions/list.html', configs=configs)
+
+@app.route('/commissions/ajouter', methods=['GET', 'POST'])
+@login_required
+@role_required('super_admin', 'admin_agence', 'secretaire')
+def add_commission():
+    form = CommissionForm()
+    op_types = OperationType.query.filter_by(is_active=True).all()
+    form.operation_type_id.choices = [(t.id, t.name) for t in op_types]
+
+    if form.validate_on_submit():
+        config = CommissionConfig(
+            operation_type_id=form.operation_type_id.data,
+            direction=form.direction.data,
+            percentage=form.percentage.data or 0,
+            fixed_amount=form.fixed_amount.data or 0,
+            min_amount=form.min_amount.data or 0,
+            max_amount=form.max_amount.data or None
+        )
+        db.session.add(config)
+        db.session.commit()
+        flash('Commission ajoutee avec succes.', 'success')
+        return redirect(url_for('list_commissions'))
+    return render_template('commissions/form.html', form=form, title='Ajouter une commission')
+
+@app.route('/commissions/supprimer/<int:id>')
+@login_required
+@role_required('super_admin', 'admin_agence', 'secretaire')
+def delete_commission(id):
+    config = CommissionConfig.query.get_or_404(id)
+    config.is_active = False
+    db.session.commit()
+    flash('Commission desactivee.', 'success')
+    return redirect(url_for('list_commissions'))
+
+@app.route('/comptabilite')
+@login_required
+@role_required('super_admin', 'admin_agence', 'comptable', 'secretaire')
+def accounting():
+    form = FilterForm()
+    agencies = Agency.query.filter_by(is_active=True).all()
+    form.agency_id.choices = [(0, 'Toutes')] + [(a.id, a.name) for a in agencies]
+
+    query = AccountingLog.query
+    if current_user.role != 'super_admin':
+        query = query.filter_by(agency_id=current_user.agency_id)
+
+    agency_id = request.args.get('agency_id', type=int)
+    date_from = request.args.get('date_from')
+    date_to = request.args.get('date_to')
+
+    if agency_id:
+        query = query.filter_by(agency_id=agency_id)
+    if date_from:
+        query = query.filter(AccountingLog.created_at >= datetime.strptime(date_from, '%Y-%m-%d'))
+    if date_to:
+        query = query.filter(AccountingLog.created_at <= datetime.strptime(date_to, '%Y-%m-%d') + timedelta(days=1))
+
+    logs = query.order_by(AccountingLog.created_at.desc()).all()
+
+    total_entrees_usd = sum(l.amount for l in logs if l.direction == 'entree' and l.currency == 'USD')
+    total_sorties_usd = sum(l.amount for l in logs if l.direction == 'sortie' and l.currency == 'USD')
+    solde_usd = total_entrees_usd - total_sorties_usd
+    total_entrees_fc = sum(l.amount for l in logs if l.direction == 'entree' and l.currency == 'FC')
+    total_sorties_fc = sum(l.amount for l in logs if l.direction == 'sortie' and l.currency == 'FC')
+    solde_fc = total_entrees_fc - total_sorties_fc
+
+    commissions_usd = sum(l.amount for l in logs if l.type == 'commission' and l.direction == 'entree' and l.currency == 'USD')
+    commissions_fc = sum(l.amount for l in logs if l.type == 'commission' and l.direction == 'entree' and l.currency == 'FC')
+    transferts_total = sum(l.amount for l in logs if l.type == 'transfert')
+
+    return render_template('comptabilite/index.html',
+        logs=logs,
+        total_entrees_usd=total_entrees_usd, total_sorties_usd=total_sorties_usd, solde_usd=solde_usd,
+        total_entrees_fc=total_entrees_fc, total_sorties_fc=total_sorties_fc, solde_fc=solde_fc,
+        commissions_usd=commissions_usd, commissions_fc=commissions_fc,
+        transferts_total=transferts_total, form=form)
+
+@app.route('/depenses')
+@login_required
+def list_expenses():
+    query = Expense.query
+    if current_user.role != 'super_admin':
+        query = query.filter_by(agency_id=current_user.agency_id)
+
+    expenses = query.order_by(Expense.created_at.desc()).all()
+    total = sum(e.amount for e in expenses)
+    return render_template('depenses/list.html', expenses=expenses, total=total)
+
+@app.route('/depenses/ajouter', methods=['GET', 'POST'])
+@login_required
+@role_required('super_admin', 'admin_agence', 'secretaire')
+def add_expense():
+    form = ExpenseForm()
+    if form.validate_on_submit():
+        expense = Expense(
+            agency_id=current_user.agency_id or 1,
+            category=form.category.data,
+            currency=form.currency.data,
+            amount=form.amount.data,
+            description=form.description.data,
+            paid_by=current_user.id
+        )
+        db.session.add(expense)
+
+        log = AccountingLog(
+            agency_id=current_user.agency_id or 1,
+            expense_id=expense.id,
+            currency=form.currency.data,
+            type='depense',
+            direction='sortie',
+            amount=form.amount.data,
+            description=f'Depense: {form.category.data} - {form.description.data[:50]}',
+            created_by=current_user.id
+        )
+        db.session.add(log)
+        db.session.commit()
+        flash('Depense enregistree.', 'success')
+        return redirect(url_for('list_expenses'))
+    return render_template('depenses/form.html', form=form, title='Nouvelle depense')
+
+@app.route('/depenses/approuver/<int:id>')
+@login_required
+@role_required('super_admin', 'comptable', 'admin_agence', 'secretaire')
+def approve_expense(id):
+    expense = Expense.query.get_or_404(id)
+    expense.approved_by = current_user.id
+    db.session.commit()
+    flash('Depense approuvee.', 'success')
+    return redirect(url_for('list_expenses'))
+
+@app.route('/rapports')
+@login_required
+@role_required('super_admin', 'admin_agence', 'comptable', 'secretaire')
+def reports():
+    form = FilterForm()
+    agencies = Agency.query.filter_by(is_active=True).all()
+    form.agency_id.choices = [(0, 'Toutes')] + [(a.id, a.name) for a in agencies]
+
+    agency_id = request.args.get('agency_id', type=int)
+    period = request.args.get('period', 'month')
+
+    today = datetime.utcnow().date()
+    if period == 'week':
+        start_date = today - timedelta(days=7)
+    elif period == 'month':
+        start_date = today - timedelta(days=30)
+    elif period == 'quarter':
+        start_date = today - timedelta(days=90)
+    elif period == 'year':
+        start_date = today - timedelta(days=365)
+    else:
+        start_date = today - timedelta(days=30)
+
+    op_query = Operation.query.filter(Operation.created_at >= start_date)
+    if agency_id:
+        op_query = op_query.filter_by(agency_id=agency_id)
+
+    total_operations = op_query.count()
+    total_amount_usd = db.session.query(db.func.sum(Operation.amount)).filter(
+        Operation.created_at >= start_date, Operation.currency == 'USD'
+    ).scalar() or 0
+    if agency_id:
+        total_amount_usd = db.session.query(db.func.sum(Operation.amount)).filter(
+            Operation.created_at >= start_date, Operation.currency == 'USD', Operation.agency_id == agency_id
+        ).scalar() or 0
+
+    total_amount_fc = db.session.query(db.func.sum(Operation.amount)).filter(
+        Operation.created_at >= start_date, Operation.currency == 'FC'
+    ).scalar() or 0
+    if agency_id:
+        total_amount_fc = db.session.query(db.func.sum(Operation.amount)).filter(
+            Operation.created_at >= start_date, Operation.currency == 'FC', Operation.agency_id == agency_id
+        ).scalar() or 0
+
+    total_commission = db.session.query(db.func.sum(Operation.commission_total)).filter(
+        Operation.created_at >= start_date
+    ).scalar() or 0
+    if agency_id:
+        total_commission = db.session.query(db.func.sum(Operation.commission_total)).filter(
+            Operation.created_at >= start_date, Operation.agency_id == agency_id
+        ).scalar() or 0
+
+    by_type = db.session.query(
+        OperationType.name,
+        db.func.count(Operation.id),
+        db.func.sum(Operation.amount)
+    ).join(OperationType).filter(Operation.id.in_([o.id for o in op_query.all()])).group_by(OperationType.name).all()
+
+    by_agency = db.session.query(
+        Agency.name,
+        db.func.count(Operation.id),
+        db.func.sum(Operation.amount)
+    ).join(Agency).filter(Operation.id.in_([o.id for o in op_query.all()])).group_by(Agency.name).all()
+
+    expense_usd = db.session.query(db.func.sum(Expense.amount)).filter(
+        Expense.created_at >= start_date, Expense.currency == 'USD'
+    ).scalar() or 0
+
+    expense_fc = db.session.query(db.func.sum(Expense.amount)).filter(
+        Expense.created_at >= start_date, Expense.currency == 'FC'
+    ).scalar() or 0
+
+    return render_template('rapports/index.html',
+        period=period, total_operations=total_operations,
+        total_amount_usd=total_amount_usd, total_amount_fc=total_amount_fc,
+        total_commission=total_commission,
+        by_type=by_type, by_agency=by_agency,
+        expense_usd=expense_usd, expense_fc=expense_fc, form=form)
+
+def init_db():
+    db.create_all()
+
+    if not OperationType.query.first():
+        types = [
+            OperationType(name='Orange Money', description='Transfert via Orange Money'),
+            OperationType(name='Airtel Money', description='Transfert via Airtel Money'),
+            OperationType(name='M-Pesa', description='Transfert via M-Pesa'),
+        ]
+        db.session.add_all(types)
+        db.session.commit()
+
+        for ot in types:
+            for direction in ['depot', 'retrait']:
+                cfg = CommissionConfig(
+                    operation_type_id=ot.id,
+                    direction=direction,
+                    percentage=1.0,
+                    fixed_amount=0.50,
+                    min_amount=0,
+                    is_active=True
+                )
+                db.session.add(cfg)
+        db.session.commit()
+
+    if not Agency.query.first():
+        agency = Agency(name='Agence Principale', address='Centre Ville', phone='+123456789')
+        db.session.add(agency)
+        db.session.commit()
+
+    if not User.query.first():
+        admin = User(
+            username='admin',
+            full_name='Administrateur',
+            email='admin@agence.com',
+            role='super_admin'
+        )
+        admin.set_password('admin123')
+        db.session.add(admin)
+
+        agency = Agency.query.first()
+        comptable = User(
+            username='comptable',
+            full_name='Comptable',
+            email='comptable@agence.com',
+            role='comptable',
+            agency_id=agency.id
+        )
+        comptable.set_password('comptable123')
+        db.session.add(comptable)
+
+        guichetier = User(
+            username='guichetier',
+            full_name='Guichetier Principal',
+            email='guichetier@agence.com',
+            role='guichetier',
+            agency_id=agency.id
+        )
+        guichetier.set_password('guichetier123')
+        db.session.add(guichetier)
+
+        secretaire = User(
+            username='secretaire',
+            full_name='Secretaire',
+            email='secretaire@agence.com',
+            role='secretaire',
+            agency_id=agency.id
+        )
+        secretaire.set_password('secretaire123')
+        db.session.add(secretaire)
+        db.session.commit()
+
+if __name__ == '__main__':
+    with app.app_context():
+        init_db()
+    app.run(debug=True, host='0.0.0.0', port=5000)

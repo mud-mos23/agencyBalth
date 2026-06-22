@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block control_panel %}
+<div class="o_control_panel">
+    <div class="breadcrumb"><a href="{{ url_for('dashboard') }}">Accueil</a> / <a href="{{ url_for('list_operations') }}">Operations</a> / <span>{{ op.reference }}</span></div>
+    <div class="o_flex_between">
+        <h1 class="cp-title">{{ op.reference }}</h1>
+        <div class="cp-actions"><a href="{{ url_for('list_operations') }}" class="btn-o btn-o-secondary"><i class="bi bi-arrow-left"></i> Retour</a></div>
+    </div>
+</div>
+{% endblock %}
+{% block content %}
+{% macro fmt(amount, currency) -%}
+{% if currency == 'FC' %}{{ "%.0f"|format(amount) }} FC{% else %}${{ "%.2f"|format(amount) }}{% endif %}
+{%- endmacro %}
+<div class="o_flex o_gap_4" style="align-items:stretch;">
+    <div class="o_card" style="flex:1;">
+        <div class="o_card_header"><i class="bi bi-info-circle"></i> Informations</div>
+        <div class="o_card_body">
+            <table class="o_list_view" style="border:0;">
+                <tr><td style="font-weight:600;width:140px;color:var(--o-text-muted);">Reference</td><td><strong>{{ op.reference }}</strong></td></tr>
+                <tr><td style="font-weight:600;width:140px;color:var(--o-text-muted);">Agence</td><td>{{ op.agency.name }}</td></tr>
+                <tr><td style="font-weight:600;width:140px;color:var(--o-text-muted);">Guichetier</td><td>{{ op.guichetier.full_name }}</td></tr>
+                <tr><td style="font-weight:600;width:140px;color:var(--o-text-muted);">Type</td><td>{{ op.operation_type.name }}</td></tr>
+                <tr><td style="font-weight:600;width:140px;color:var(--o-text-muted);">Operation</td><td>{% if op.direction == 'depot' %}<span class="o_badge primary">Depot</span>{% else %}<span class="o_badge warning">Retrait</span>{% endif %}</td></tr>
+                <tr><td style="font-weight:600;width:140px;color:var(--o-text-muted);">Devise</td><td><span class="o_badge info">{{ op.currency }}</span></td></tr>
+                <tr><td style="font-weight:600;width:140px;color:var(--o-text-muted);">Statut</td><td>{% if op.status == 'validated' %}<span class="o_badge success">Valide</span>{% elif op.status == 'rejected' %}<span class="o_badge danger">Rejete</span>{% else %}<span class="o_badge warning">Attente</span>{% endif %}</td></tr>
+                <tr><td style="font-weight:600;width:140px;color:var(--o-text-muted);">Date</td><td>{{ op.created_at.strftime('%d/%m/%Y %H:%M:%S') }}</td></tr>
+                {% if op.validated_by %}<tr><td style="font-weight:600;width:140px;color:var(--o-text-muted);">Valide par</td><td>{{ op.validator.full_name }} ({{ op.validated_at.strftime('%d/%m/%Y %H:%M') }})</td></tr>{% endif %}
+            </table>
+        </div>
+    </div>
+    <div class="o_card" style="flex:1;">
+        <div class="o_card_header"><i class="bi bi-currency-dollar"></i> Details financiers</div>
+        <div class="o_card_body">
+            <table class="o_list_view" style="border:0;">
+                <tr><td style="font-weight:600;width:140px;color:var(--o-text-muted);">Montant</td><td><strong>{{ fmt(op.amount, op.currency) }}</strong></td></tr>
+                <tr><td style="font-weight:600;width:140px;color:var(--o-text-muted);">Commission (%)</td><td>{{ "%.1f"|format(op.commission_percentage) }}%</td></tr>
+                <tr><td style="font-weight:600;width:140px;color:var(--o-text-muted);">Commission (fixe)</td><td>{{ fmt(op.commission_fixed, op.currency) }}</td></tr>
+                <tr style="background:#FFF8E1;"><td style="font-weight:600;width:140px;color:var(--o-text-muted);">Commission totale</td><td><strong>{{ fmt(op.commission_total, op.currency) }}</strong></td></tr>
+                <tr style="background:#EBEFFA;"><td style="font-weight:600;width:140px;color:var(--o-text-muted);">Total</td><td><strong>{{ fmt(op.total_amount, op.currency) }}</strong></td></tr>
+            </table>
+        </div>
+    </div>
+</div>
+<div class="o_flex o_gap_4" style="align-items:stretch;">
+    <div class="o_card" style="flex:1;">
+        <div class="o_card_header"><i class="bi bi-person"></i> Client</div>
+        <div class="o_card_body">
+            <table class="o_list_view" style="border:0;">
+                <tr><td style="font-weight:600;width:140px;color:var(--o-text-muted);">Nom</td><td><strong>{{ op.client_name }}</strong></td></tr>
+                <tr><td style="font-weight:600;width:140px;color:var(--o-text-muted);">Telephone</td><td>{{ op.client_phone }}</td></tr>
+            </table>
+            {% if op.notes %}<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--o-border);"><small style="font-weight:600;color:var(--o-text-muted);">Notes:</small><p style="margin:4px 0 0;font-size:13px;">{{ op.notes }}</p></div>{% endif %}
+        </div>
+    </div>
+    <div class="o_card" style="flex:1;">
+        <div class="o_card_header"><i class="bi bi-shield-check"></i> Validation</div>
+        <div class="o_card_body">
+            {% if op.status == 'pending' and current_user.has_role('super_admin', 'admin_agence', 'comptable', 'secretaire') %}
+            <div style="display:flex;gap:8px;">
+                <a href="{{ url_for('validate_operation', id=op.id) }}" class="btn-o btn-o-success" onclick="return confirm('Valider cette operation?')"><i class="bi bi-check-lg"></i> Valider</a>
+                <a href="{{ url_for('reject_operation', id=op.id) }}" class="btn-o btn-o-danger" onclick="return confirm('Rejeter cette operation?')"><i class="bi bi-x-lg"></i> Rejeter</a>
+            </div>
+            {% elif op.status == 'validated' %}
+            <div style="text-align:center;padding:16px;"><i class="bi bi-check-circle" style="font-size:40px;color:var(--o-success);"></i><p style="margin:8px 0 0;font-weight:600;color:var(--o-success);">Operation validee</p></div>
+            {% elif op.status == 'rejected' %}
+            <div style="text-align:center;padding:16px;"><i class="bi bi-x-circle" style="font-size:40px;color:var(--o-danger);"></i><p style="margin:8px 0 0;font-weight:600;color:var(--o-danger);">Operation rejetee</p></div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

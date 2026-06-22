@@ -1,0 +1,414 @@
+{% extends "base.html" %}
+{% block title %}Documentation{% endblock %}
+{% block control_panel %}
+<div class="o_control_panel">
+    <div class="breadcrumb"><a href="{{ url_for('dashboard') }}">Accueil</a> / <span>Documentation</span></div>
+    <h1 class="cp-title">Documentation</h1>
+</div>
+{% endblock %}
+{% block content %}
+<style>
+.doc-container { max-width:900px; margin:0 auto; }
+.doc-container h4 { color:var(--o-primary); margin:28px 0 12px; font-weight:700; }
+.doc-container h5 { color:var(--o-text); margin:20px 0 8px; font-weight:600; font-size:15px; }
+.doc-container h6 { margin:14px 0 6px; font-weight:600; font-size:13px; color:var(--o-text-muted); text-transform:uppercase; letter-spacing:.3px; }
+.doc-container p, .doc-container li { font-size:13px; line-height:1.7; color:var(--o-text); }
+.doc-container ul, .doc-container ol { padding-left:20px; }
+.doc-container hr { border:none; border-top:1px solid var(--o-border); margin:24px 0; }
+.doc-container .tag { display:inline-block; padding:2px 8px; border-radius:4px; font-size:11px; font-weight:600; margin:2px; }
+.doc-container .tag.admin { background:#EBEFFA; color:var(--o-primary); }
+.doc-container .tag.agence { background:#E6F7E6; color:#1A7D36; }
+.doc-container .tag.compta { background:#FFF8E1; color:#B8860B; }
+.doc-container .tag.guichet { background:#E0F7FA; color:#00838F; }
+.doc-container .tag.secret { background:#FFEBEE; color:#C62828; }
+.doc-container .tag.all { background:#F3F4F6; color:var(--o-text); }
+.doc-container .info-box { background:#F0F4FF; border-left:4px solid var(--o-primary); padding:12px 16px; border-radius:6px; margin:12px 0; font-size:13px; }
+.doc-container .warn-box { background:#FFF8E1; border-left:4px solid var(--o-warning); padding:12px 16px; border-radius:6px; margin:12px 0; font-size:13px; }
+.doc-table { width:100%; border-collapse:collapse; margin:12px 0; font-size:13px; }
+.doc-table th, .doc-table td { border:1px solid var(--o-border); padding:8px 12px; text-align:left; }
+.doc-table th { background:#F9FAFB; font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:.3px; color:var(--o-text-muted); }
+.doc-table tr:hover td { background:#F3F4FF; }
+.doc-sect { background:var(--o-card-bg); border:1px solid var(--o-border); border-radius:8px; padding:0; margin-bottom:16px; overflow:hidden; }
+.doc-sect-header { padding:14px 20px; background:#F9FAFB; border-bottom:1px solid var(--o-border); font-weight:600; font-size:14px; display:flex; align-items:center; gap:10px; }
+.doc-sect-header i { font-size:18px; }
+.doc-sect-body { padding:16px 20px; }
+.doc-sect.super_admin .doc-sect-header { background:#EBEFFA; }
+.doc-sect.super_admin .doc-sect-header i { color:var(--o-primary); }
+.doc-sect.admin_agence .doc-sect-header { background:#E6F7E6; }
+.doc-sect.admin_agence .doc-sect-header i { color:#1A7D36; }
+.doc-sect.secretaire .doc-sect-header { background:#FFEBEE; }
+.doc-sect.secretaire .doc-sect-header i { color:#C62828; }
+.doc-sect.comptable .doc-sect-header { background:#FFF8E1; }
+.doc-sect.comptable .doc-sect-header i { color:#B8860B; }
+.doc-sect.guichetier .doc-sect-header { background:#E0F7FA; }
+.doc-sect.guichetier .doc-sect-header i { color:#00838F; }
+</style>
+
+<div class="doc-container">
+    <div class="o_form_sheet" style="max-width:100%;">
+        <div class="o_form_header">
+            <h4 style="margin:0;font-size:22px;">Documentation par poste</h4>
+            <p style="margin:4px 0 0;font-size:13px;color:var(--o-text-muted);">Guide des fonctionnalites selon votre role dans l'application</p>
+        </div>
+        <div class="o_form_body">
+
+            <!-- SOMMAIRE -->
+            <div class="doc-sect">
+                <div class="doc-sect-header"><i class="bi bi-list-ul"></i> Sommaire</div>
+                <div class="doc-sect-body">
+                    <ol style="font-size:13px;line-height:2;">
+                        <li><a href="#super_admin">Super Administrateur</a></li>
+                        <li><a href="#admin_agence">Admin Agence</a></li>
+                        <li><a href="#secretaire">Secretaire</a></li>
+                        <li><a href="#comptable">Comptable</a></li>
+                        <li><a href="#guichetier">Guichetier</a></li>
+                        <li><a href="#pages">Guide des pages</a></li>
+                        <li><a href="#faq">FAQ</a></li>
+                    </ol>
+                </div>
+            </div>
+
+            <!-- ============================================================ -->
+            <!-- SUPER ADMIN -->
+            <!-- ============================================================ -->
+            <div class="doc-sect super_admin">
+                <div class="doc-sect-header"><i class="bi bi-shield-lock"></i> Super Administrateur</div>
+                <div class="doc-sect-body">
+                    <p>Le <strong>Super Administrateur</strong> a un acces total et illimite a toutes les fonctionnalites de l'application. Il peut tout voir, tout creer, tout modifier et tout supprimer sur l'ensemble des agences.</p>
+
+                    <h5>Pages accessibles</h5>
+                    <ul>
+                        <li><strong>Tableau de bord</strong> - Vue globale de toutes les agences</li>
+                        <li><strong>Operations</strong> - Liste + Creation + Validation + Rejet</li>
+                        <li><strong>Depenses</strong> - Liste + Creation + Approbation</li>
+                        <li><strong>Comptabilite</strong> - Toutes les ecritures de toutes les agences</li>
+                        <li><strong>Rapports</strong> - Statistiques globales et par agence</li>
+                        <li><strong>Agences</strong> - Gestion complete (ajout, modification, desactivation)</li>
+                        <li><strong>Utilisateurs</strong> - Gestion de tous les utilisateurs</li>
+                        <li><strong>Commissions</strong> - Configuration des baremes</li>
+                        <li><strong>Mon profil</strong> - Modification de vos informations</li>
+                        <li><strong>Documentation</strong> - Ce guide</li>
+                    </ul>
+
+                    <h5>Actions particulieres</h5>
+                    <ul>
+                        <li>Creer, modifier et desactiver des agences</li>
+                        <li>Creer, modifier et desactiver n'importe quel utilisateur</li>
+                        <li>Configurer les baremes de commission (pourcentage, montant fixe, plafonds)</li>
+                        <li>Filtrer les donnees par agence dans toutes les pages</li>
+                        <li>Voir les donnees de toutes les agences sans restriction</li>
+                    </ul>
+
+                    <h5>Compte par defaut</h5>
+                    <div class="info-box">
+                        <i class="bi bi-info-circle"></i> Identifiant : <strong>admin</strong> / Mot de passe : <strong>admin123</strong>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ============================================================ -->
+            <!-- ADMIN AGENCE -->
+            <!-- ============================================================ -->
+            <div class="doc-sect admin_agence">
+                <div class="doc-sect-header"><i class="bi bi-building"></i> Admin Agence</div>
+                <div class="doc-sect-body">
+                    <p>L'<strong>Admin Agence</strong> gere son agence au complet. Il a les memes droits que le Super Admin, mais limite a son agence. Il peut aussi gerer les utilisateurs de son agence et configurer les commissions.</p>
+
+                    <h5>Pages accessibles</h5>
+                    <ul>
+                        <li><strong>Tableau de bord</strong> - Vue de son agence</li>
+                        <li><strong>Operations</strong> - Liste (son agence) + Creation + Validation + Rejet</li>
+                        <li><strong>Depenses</strong> - Liste (son agence) + Creation + Approbation</li>
+                        <li><strong>Comptabilite</strong> - Ecritures de son agence</li>
+                        <li><strong>Rapports</strong> - Statistiques de son agence</li>
+                        <li><strong>Agences</strong> - Consultation uniquement</li>
+                        <li><strong>Utilisateurs</strong> - Gestion des utilisateurs de son agence</li>
+                        <li><strong>Commissions</strong> - Consultation et configuration</li>
+                        <li><strong>Mon profil</strong> - Modification de vos informations</li>
+                        <li><strong>Documentation</strong> - Ce guide</li>
+                    </ul>
+
+                    <h5>Actions particulieres</h5>
+                    <ul>
+                        <li>Creer, modifier et desactiver les utilisateurs de son agence</li>
+                        <li>Creer, valider et rejeter les operations de son agence</li>
+                        <li>Approuver les depenses de son agence</li>
+                        <li>Consulter et configurer les commissions</li>
+                        <li>Consulter les agences (lecture seule)</li>
+                        <li>Filtrer les donnees par agence</li>
+                    </ul>
+
+                    <div class="warn-box">
+                        <i class="bi bi-exclamation-triangle"></i> <strong>Limite :</strong> L'Admin Agence ne voit que les donnees de son agence. Il ne peut pas gerer les utilisateurs des autres agences.
+                    </div>
+                </div>
+            </div>
+
+            <!-- ============================================================ -->
+            <!-- SECRETAIRE -->
+            <!-- ============================================================ -->
+            <div class="doc-sect secretaire">
+                <div class="doc-sect-header"><i class="bi bi-file-text"></i> Secretaire</div>
+                <div class="doc-sect-body">
+                    <p>La <strong>Secretaire</strong> a les memes droits que l'Admin Agence. Elle peut gerer les operations, les depenses, les utilisateurs et meme configurer les commissions.</p>
+
+                    <h5>Pages accessibles</h5>
+                    <ul>
+                        <li><strong>Tableau de bord</strong> - Vue de son agence</li>
+                        <li><strong>Operations</strong> - Liste (son agence) + Creation + Validation + Rejet</li>
+                        <li><strong>Depenses</strong> - Liste (son agence) + Creation + Approbation</li>
+                        <li><strong>Comptabilite</strong> - Ecritures de son agence</li>
+                        <li><strong>Rapports</strong> - Statistiques de son agence</li>
+                        <li><strong>Agences</strong> - Consultation uniquement</li>
+                        <li><strong>Utilisateurs</strong> - Gestion des utilisateurs de son agence</li>
+                        <li><strong>Commissions</strong> - Consultation et configuration</li>
+                        <li><strong>Mon profil</strong> - Modification de vos informations</li>
+                        <li><strong>Documentation</strong> - Ce guide</li>
+                    </ul>
+
+                    <h5>Actions particulieres</h5>
+                    <ul>
+                        <li>Creer, valider et rejeter des operations</li>
+                        <li>Creer et approuver des depenses</li>
+                        <li>Gerer les utilisateurs de son agence</li>
+                        <li>Configurer les commissions</li>
+                        <li>Consulter la comptabilite et les rapports</li>
+                    </ul>
+
+                    <div class="info-box">
+                        <i class="bi bi-info-circle"></i> La Secretaire a exactement les memes permissions que l'Admin Agence.
+                    </div>
+                </div>
+            </div>
+
+            <!-- ============================================================ -->
+            <!-- COMPTABLE -->
+            <!-- ============================================================ -->
+            <div class="doc-sect comptable">
+                <div class="doc-sect-header"><i class="bi bi-calculator"></i> Comptable</div>
+                <div class="doc-sect-body">
+                    <p>Le <strong>Comptable</strong> est axe sur le suivi financier. Il peut consulter la comptabilite, valider/rejeter des operations et approuver les depenses, mais il ne peut pas creer d'operations ni gerer les utilisateurs.</p>
+
+                    <h5>Pages accessibles</h5>
+                    <ul>
+                        <li><strong>Tableau de bord</strong> - Vue de son agence</li>
+                        <li><strong>Operations</strong> - Liste (son agence) + Validation + Rejet (pas de creation)</li>
+                        <li><strong>Depenses</strong> - Liste (son agence) + Approbation (pas de creation)</li>
+                        <li><strong>Comptabilite</strong> - Ecritures de son agence</li>
+                        <li><strong>Rapports</strong> - Statistiques de son agence</li>
+                        <li><strong>Mon profil</strong> - Modification de vos informations</li>
+                        <li><strong>Documentation</strong> - Ce guide</li>
+                    </ul>
+
+                    <h5>Actions particulieres</h5>
+                    <ul>
+                        <li>Valider et rejeter des operations en attente</li>
+                        <li>Approuver les depenses</li>
+                        <li>Consulter tous les mouvements comptables</li>
+                        <li>Generer des rapports d'activite</li>
+                    </ul>
+
+                    <div class="warn-box">
+                        <i class="bi bi-exclamation-triangle"></i> <strong>Limites :</strong> Le Comptable ne peut pas creer d'operations, ni gerer les utilisateurs, les agences ou les commissions.
+                    </div>
+                </div>
+            </div>
+
+            <!-- ============================================================ -->
+            <!-- GUICHETIER -->
+            <!-- ============================================================ -->
+            <div class="doc-sect guichetier">
+                <div class="doc-sect-header"><i class="bi bi-arrow-left-right"></i> Guichetier</div>
+                <div class="doc-sect-body">
+                    <p>Le <strong>Guichetier</strong> est le role le plus limite. Il est uniquement la pour creer des operations de transfert pour les clients.</p>
+
+                    <h5>Pages accessibles</h5>
+                    <ul>
+                        <li><strong>Tableau de bord</strong> - Vue de son agence</li>
+                        <li><strong>Operations</strong> - Liste (son agence) + Creation (pas de validation/rejet)</li>
+                        <li><strong>Depenses</strong> - Non accessible</li>
+                        <li><strong>Comptabilite</strong> - Non accessible</li>
+                        <li><strong>Rapports</strong> - Non accessible</li>
+                        <li><strong>Agences</strong> - Non accessible</li>
+                        <li><strong>Utilisateurs</strong> - Non accessible</li>
+                        <li><strong>Commissions</strong> - Non accessible</li>
+                        <li><strong>Mon profil</strong> - Modification de vos informations</li>
+                        <li><strong>Documentation</strong> - Ce guide</li>
+                    </ul>
+
+                    <h5>Actions particulieres</h5>
+                    <ul>
+                        <li>Creer des operations de depot et retrait</li>
+                        <li>Consulter la liste des operations qu'il a creees</li>
+                        <li>Consulter les details d'une operation</li>
+                    </ul>
+
+                    <div class="warn-box">
+                        <i class="bi bi-exclamation-triangle"></i> <strong>Limites :</strong> Le Guichetier ne peut ni valider ni rejeter les operations. Une fois creees, elles doivent etre validees par un superieur (Admin Agence, Secretaire, Comptable).
+                    </div>
+                </div>
+            </div>
+
+            <!-- ============================================================ -->
+            <!-- GUIDE DES PAGES -->
+            <!-- ============================================================ -->
+            <h4 id="pages">6. Guide des pages</h4>
+
+            <div class="doc-sect">
+                <div class="doc-sect-header"><i class="bi bi-speedometer2" style="color:var(--o-primary);"></i> Tableau de bord</div>
+                <div class="doc-sect-body">
+                    <p>Page d'accueil apres connexion. Affiche un resume de l'activite :</p>
+                    <ul>
+                        <li>Operations du jour, de la semaine et du mois</li>
+                        <li>Montants totals par devise (USD/FC)</li>
+                        <li>Commissions du jour</li>
+                        <li>Operations en attente de validation</li>
+                        <li>Depenses du mois</li>
+                        <li>10 dernieres operations</li>
+                    </ul>
+                    <p><strong>Roles :</strong> Tous les utilisateurs</p>
+                </div>
+            </div>
+
+            <div class="doc-sect">
+                <div class="doc-sect-header"><i class="bi bi-arrow-left-right" style="color:var(--o-primary);"></i> Operations</div>
+                <div class="doc-sect-body">
+                    <p>Gestion des transferts d'argent (depot/retrait) via Orange Money, Airtel Money, M-Pesa.</p>
+                    <h6>Fonctionnalites</h6>
+                    <ul>
+                        <li><strong>Filtres :</strong> Statut, Agence, Date</li>
+                        <li><strong>Creation :</strong> Super Admin, Admin Agence, Guichetier, Secretaire</li>
+                        <li><strong>Validation :</strong> Super Admin, Admin Agence, Comptable, Secretaire</li>
+                        <li><strong>Rejet :</strong> Super Admin, Admin Agence, Comptable, Secretaire</li>
+                    </ul>
+                    <p>La commission est calculee automatiquement selon le bareme configure.</p>
+                </div>
+            </div>
+
+            <div class="doc-sect">
+                <div class="doc-sect-header"><i class="bi bi-cash" style="color:var(--o-primary);"></i> Depenses</div>
+                <div class="doc-sect-body">
+                    <p>Enregistrement et suivi des depenses de l'agence.</p>
+                    <h6>Fonctionnalites</h6>
+                    <ul>
+                        <li><strong>Creation :</strong> Super Admin, Admin Agence, Secretaire</li>
+                        <li><strong>Approbation :</strong> Super Admin, Admin Agence, Comptable, Secretaire</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="doc-sect">
+                <div class="doc-sect-header"><i class="bi bi-calculator" style="color:var(--o-primary);"></i> Comptabilite</div>
+                <div class="doc-sect-body">
+                    <p>Consultation des mouvements financiers generes automatiquement.</p>
+                    <h6>Informations</h6>
+                    <ul>
+                        <li>Total entrees/sorties par devise</li>
+                        <li>Solde par devise</li>
+                        <li>Total commissions par devise</li>
+                        <li>Liste de toutes les ecritures</li>
+                    </ul>
+                    <p><strong>Roles :</strong> Super Admin, Admin Agence, Comptable, Secretaire</p>
+                </div>
+            </div>
+
+            <div class="doc-sect">
+                <div class="doc-sect-header"><i class="bi bi-bar-chart" style="color:var(--o-primary);"></i> Rapports</div>
+                <div class="doc-sect-body">
+                    <p>Generation de rapports d'activite par periode et par agence.</p>
+                    <h6>Periodes</h6>
+                    <ul>
+                        <li>7 jours, 30 jours, 3 mois, 1 an</li>
+                    </ul>
+                    <h6>Indicateurs</h6>
+                    <ul>
+                        <li>Nombre d'operations</li>
+                        <li>Montant total USD/FC</li>
+                        <li>Total commissions</li>
+                        <li>Repartition par type d'operation</li>
+                        <li>Repartition par agence</li>
+                        <li>Depenses USD/FC</li>
+                    </ul>
+                    <p><strong>Roles :</strong> Super Admin, Admin Agence, Comptable, Secretaire</p>
+                </div>
+            </div>
+
+            <div class="doc-sect">
+                <div class="doc-sect-header"><i class="bi bi-building" style="color:var(--o-primary);"></i> Agences</div>
+                <div class="doc-sect-body">
+                    <p>Gestion des agences.</p>
+                    <h6>Fonctionnalites</h6>
+                    <ul>
+                        <li><strong>Creation / Modification / Desactivation :</strong> Super Admin uniquement</li>
+                        <li><strong>Consultation :</strong> Super Admin, Admin Agence, Secretaire</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="doc-sect">
+                <div class="doc-sect-header"><i class="bi bi-people" style="color:var(--o-primary);"></i> Utilisateurs</div>
+                <div class="doc-sect-body">
+                    <p>Gestion des comptes utilisateurs.</p>
+                    <h6>Fonctionnalites</h6>
+                    <ul>
+                        <li><strong>Creation / Modification / Desactivation :</strong> Super Admin, Admin Agence, Secretaire</li>
+                    </ul>
+                    <p>L'Admin Agence et la Secretaire ne peuvent gerer que les utilisateurs de leur propre agence.</p>
+                </div>
+            </div>
+
+            <div class="doc-sect">
+                <div class="doc-sect-header"><i class="bi bi-percent" style="color:var(--o-primary);"></i> Commissions</div>
+                <div class="doc-sect-body">
+                    <p>Configuration des baremes de commission par type d'operation et direction.</p>
+                    <h6>Parametres</h6>
+                    <ul>
+                        <li>Pourcentage du montant</li>
+                        <li>Montant fixe</li>
+                        <li>Montant minimum et maximum</li>
+                    </ul>
+                    <p><strong>Roles :</strong> Super Admin, Admin Agence, Secretaire</p>
+                </div>
+            </div>
+
+            <!-- ============================================================ -->
+            <!-- FAQ -->
+            <!-- ============================================================ -->
+            <h4 id="faq">7. FAQ</h4>
+
+            <div class="doc-sect">
+                <div class="doc-sect-body">
+                    <h5>Je suis guichetier, pourquoi je ne vois pas le menu Comptabilite ?</h5>
+                    <p>Le role Guichetier est limite a la creation d'operations. Seuls les Super Admin, Admins Agence, Comptables et Secretaires ont acces a la comptabilite et aux rapports.</p>
+
+                    <h5>Je suis secretaire, quels sont mes droits ?</h5>
+                    <p>La Secretaire a les memes droits que l'Admin Agence : gestion des operations, depenses, utilisateurs, commissions, comptabilite et rapports. Vous pouvez tout faire dans le perimetre de votre agence.</p>
+
+                    <h5>Puis-je modifier une operation deja validee ?</h5>
+                    <p>Non. Une operation validee est verrouillee. Si une erreur s'est glissee, contactez le Super Admin.</p>
+
+                    <h5>Comment sont calculees les commissions ?</h5>
+                    <p>Automatiquement lors de la creation d'une operation, en fonction du bareme configure dans Commissions. Le calcul tient compte du pourcentage et du montant fixe definis.</p>
+
+                    <h5>Pourquoi je ne vois pas le bouton pour creer une operation ?</h5>
+                    <p>Seuls les Super Admin, Admins Agence, Guichetiers et Secretaires peuvent creer des operations. Si vous etes Comptable, vous pouvez seulement valider/rejeter.</p>
+
+                    <h5>Un utilisateur a quitte l'agence, comment le desactiver ?</h5>
+                    <p>Allez dans Utilisateurs, cliquez sur l'icone poubelle a cote de son nom. L'utilisateur sera desactive mais ses donnees conservees.</p>
+
+                    <h5>Comment changer mon mot de passe ?</h5>
+                    <p>Allez dans <strong>Mon profil</strong> (menu Compte dans la sidebar), saisissez un nouveau mot de passe et cliquez sur Enregistrer.</p>
+                </div>
+            </div>
+
+            <hr>
+
+            <p style="text-align:center;color:var(--o-text-muted);font-size:12px;">
+                <i class="bi bi-cpu"></i> Ets Balthazar - Application de gestion des transferts d'argent<br>
+                Documente par poste et par page
+            </p>
+
+        </div>
+    </div>
+</div>
+{% endblock %}

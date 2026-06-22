@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Utilisateurs{% endblock %}
+{% block control_panel %}
+<div class="o_control_panel">
+    <div class="breadcrumb"><a href="{{ url_for('dashboard') }}">Accueil</a> / <span>Utilisateurs</span></div>
+    <div class="o_flex_between">
+        <h1 class="cp-title">Utilisateurs</h1>
+        <div class="cp-actions"><a href="{{ url_for('add_user') }}" class="btn-o btn-o-primary"><i class="bi bi-plus-lg"></i> Nouvel utilisateur</a></div>
+    </div>
+</div>
+{% endblock %}
+{% block content %}
+<div class="o_card">
+    <div class="o_card_body p-0">
+        <table class="o_list_view">
+            <thead>
+                <tr><th>Nom</th><th>Identifiant</th><th>Role</th><th>Agence</th><th>Contact</th><th>Statut</th><th class="o_action_buttons">Actions</th></tr>
+            </thead>
+            <tbody>
+                {% for user in users %}
+                <tr>
+                    <td><strong>{{ user.full_name }}</strong></td>
+                    <td>{{ user.username }}</td>
+                    <td><span class="o_badge primary">{{ user.role|replace('_', ' ')|title }}</span></td>
+                    <td>{{ user.agency.name if user.agency else '-' }}</td>
+                    <td>{{ user.phone or user.email or '-' }}</td>
+                    <td>{% if user.is_active %}<span class="o_badge success">Actif</span>{% else %}<span class="o_badge warning">Inactif</span>{% endif %}</td>
+                    <td class="o_action_buttons">
+                        <a href="{{ url_for('edit_user', id=user.id) }}" class="btn-o btn-o-secondary btn-o-sm"><i class="bi bi-pencil"></i></a>
+                        {% if current_user.role in ('super_admin', 'admin_agence', 'secretaire') and user.id != current_user.id %}
+                        <a href="{{ url_for('delete_user', id=user.id) }}" class="btn-o btn-o-danger btn-o-sm" onclick="return confirm('Desactiver cet utilisateur?')"><i class="bi bi-trash"></i></a>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="7" style="text-align:center;padding:32px;color:var(--o-text-muted);"><i class="bi bi-people" style="font-size:32px;display:block;margin-bottom:8px;"></i>Aucun utilisateur</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

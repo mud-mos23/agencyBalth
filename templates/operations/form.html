@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block control_panel %}
+<div class="o_control_panel">
+    <div class="breadcrumb"><a href="{{ url_for('dashboard') }}">Accueil</a> / <a href="{{ url_for('list_operations') }}">Operations</a> / <span>Nouvelle operation</span></div>
+    <h1 class="cp-title">Nouvelle operation</h1>
+</div>
+{% endblock %}
+{% block content %}
+<div class="o_form_sheet">
+    <div class="o_form_header"><h4 style="margin:0;font-weight:600;color:var(--o-text);">Formulaire d'operation</h4></div>
+    <div class="o_form_body">
+        <form method="POST" id="operationForm">
+            {{ form.hidden_tag() }}
+            <div class="row">
+                <div class="col-md-4"><div class="o_field"><label>{{ form.operation_type_id.label.text }}</label>{{ form.operation_type_id(class="form-select", id="opType") }}</div></div>
+                <div class="col-md-4"><div class="o_field"><label>{{ form.direction.label.text }}</label>{{ form.direction(class="form-select", id="direction") }}</div></div>
+                <div class="col-md-4"><div class="o_field"><label>{{ form.currency.label.text }}</label>{{ form.currency(class="form-select", id="currency") }}</div></div>
+            </div>
+            <hr style="border-color:var(--o-border);margin:16px 0;">
+            <h5 style="font-size:14px;font-weight:600;margin-bottom:16px;">Client</h5>
+            <div class="row">
+                <div class="col-md-6"><div class="o_field"><label>{{ form.client_name.label.text }}</label>{{ form.client_name(class="form-control", placeholder="Nom complet du client") }}</div></div>
+                <div class="col-md-6"><div class="o_field"><label>{{ form.client_phone.label.text }}</label>{{ form.client_phone(class="form-control", placeholder="+243 XX XXX XXXX") }}</div></div>
+            </div>
+            <hr style="border-color:var(--o-border);margin:16px 0;">
+            <h5 style="font-size:14px;font-weight:600;margin-bottom:16px;">Montant et commission</h5>
+            <div class="row">
+                <div class="col-md-4"><div class="o_field"><label>{{ form.amount.label.text }}</label><div class="input-group"><span class="input-group-text" id="currencySymbol">$</span>{{ form.amount(class="form-control", id="amount", step="0.01") }}</div></div></div>
+                <div class="col-md-4"><div class="o_field"><label>Commission</label><div class="input-group"><span class="input-group-text" id="commSymbol">$</span><input type="text" class="form-control" id="commissionDisplay" value="0.00" readonly></div></div></div>
+                <div class="col-md-4"><div class="o_field"><label>Total</label><div class="input-group"><span class="input-group-text" id="totalSymbol">$</span><input type="text" class="form-control" id="totalDisplay" value="0.00" readonly></div></div></div>
+            </div>
+            <div class="o_field"><label>{{ form.notes.label.text }}</label>{{ form.notes(class="form-control", rows=2) }}</div>
+    </div>
+    <div class="o_form_footer">
+        <button type="submit" class="btn-o btn-o-primary"><i class="bi bi-check-lg"></i> Enregistrer</button>
+        <a href="{{ url_for('list_operations') }}" class="btn-o btn-o-secondary">Annuler</a>
+    </div>
+    </form>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+$(document).ready(function() {
+    function updateCurrencySymbol() {
+        var currency = $('#currency').val();
+        var symbol = (currency === 'FC') ? 'FC ' : '$';
+        $('#currencySymbol').text(symbol);
+        $('#commSymbol').text(symbol);
+        $('#totalSymbol').text(symbol);
+    }
+    function calcCommission() {
+        var opTypeId = $('#opType').val();
+        var direction = $('#direction').val();
+        var amount = $('#amount').val();
+        if (opTypeId && direction && amount && parseFloat(amount) > 0) {
+            $.get('/api/commission', { operation_type_id: opTypeId, direction: direction, amount: parseFloat(amount) }, function(data) {
+                var cur = $('#currency').val();
+                var dec = (cur === 'FC') ? 0 : 2;
+                $('#commissionDisplay').val(data.total.toFixed(dec));
+                $('#totalDisplay').val((parseFloat(amount) + data.total).toFixed(dec));
+            });
+        } else {
+            $('#commissionDisplay').val('0.00');
+            $('#totalDisplay').val('0.00');
+        }
+    }
+    $('#currency').on('change', updateCurrencySymbol);
+    $('#opType, #direction, #amount').on('change keyup', calcCommission);
+});
+</script>
+{% endblock %}

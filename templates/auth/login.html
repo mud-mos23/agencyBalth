@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}Connexion{% endblock %}
+{% block login_content %}
+<style>
+.o_login {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    background: linear-gradient(135deg, #2B2B3D 0%, #3D3D5C 100%);
+}
+.o_login_card {
+    background: #fff;
+    border-radius: 16px;
+    box-shadow: 0 8px 32px rgba(0,0,0,.3);
+    padding: 40px;
+    width: 400px;
+    max-width: 90vw;
+}
+.o_login_card .logo {
+    text-align: center;
+    margin-bottom: 32px;
+}
+.o_login_card .logo i {
+    font-size: 48px;
+    color: var(--o-primary);
+    background: #EBEFFA;
+    padding: 16px;
+    border-radius: 16px;
+}
+.o_login_card .logo h2 {
+    margin: 16px 0 4px;
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--o-text);
+}
+.o_login_card .logo p {
+    color: var(--o-text-muted);
+    font-size: 13px;
+    margin: 0;
+}
+.o_login_card .o_field {
+    margin-bottom: 20px;
+}
+.o_login_card .btn-o {
+    width: 100%;
+    justify-content: center;
+    padding: 10px;
+    font-size: 14px;
+}
+.o_login_card .login-footer {
+    text-align: center;
+    margin-top: 24px;
+    font-size: 12px;
+    color: var(--o-text-muted);
+}
+</style>
+<div class="o_login">
+    <div class="o_login_card">
+        <div class="logo">
+            <i class="bi bi-bank"></i>
+            <h2>Ets Balthazar</h2>
+            <p>Systeme de gestion des operations</p>
+        </div>
+        <form method="POST">
+            {{ form.hidden_tag() }}
+            <div class="o_field">
+                <label>{{ form.username.label.text }}</label>
+                {{ form.username(class="form-control", placeholder="Nom d'utilisateur") }}
+            </div>
+            <div class="o_field">
+                <label>{{ form.password.label.text }}</label>
+                {{ form.password(class="form-control", placeholder="Mot de passe") }}
+            </div>
+            <button type="submit" class="btn-o btn-o-primary btn-o-lg">
+                <i class="bi bi-box-arrow-in-right"></i> Se connecter
+            </button>
+        </form>
+        <div class="login-footer">
+            <p class="mb-0">&copy; 2024 Ets Balthazar</p>
+        </div>
+    </div>
+</div>
+{% endblock %}

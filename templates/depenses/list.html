@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block control_panel %}
+<div class="o_control_panel">
+    <div class="breadcrumb"><a href="{{ url_for('dashboard') }}">Accueil</a> / <span>Depenses</span></div>
+    <div class="o_flex_between">
+        <h1 class="cp-title">Depenses</h1>
+        <div class="cp-actions"><a href="{{ url_for('add_expense') }}" class="btn-o btn-o-primary"><i class="bi bi-plus-lg"></i> Nouvelle depense</a></div>
+    </div>
+</div>
+{% endblock %}
+{% block content %}
+<div class="o_card">
+    <div class="o_card_body p-0">
+        <table class="o_list_view">
+            <thead>
+                <tr><th>Date</th><th>Agence</th><th>Categorie</th><th>Montant</th><th>Devise</th><th>Description</th><th>Paye par</th><th>Statut</th><th class="o_action_buttons">Actions</th></tr>
+            </thead>
+            <tbody>
+                {% for expense in expenses %}
+                <tr>
+                    <td class="o_text_small">{{ expense.created_at.strftime('%d/%m/%Y') }}</td>
+                    <td>{{ expense.agency.name }}</td>
+                    <td><span class="o_badge primary">{{ expense.category|title }}</span></td>
+                    <td><strong>{% if expense.currency == 'FC' %}{{ "%.0f"|format(expense.amount) }} FC{% else %}${{ "%.2f"|format(expense.amount) }}{% endif %}</strong></td>
+                    <td><span class="o_badge info">{{ expense.currency }}</span></td>
+                    <td>{{ expense.description[:50] }}{{ '...' if expense.description|length > 50 }}</td>
+                    <td>{{ expense.payer.full_name }}</td>
+                    <td>{% if expense.approved_by %}<span class="o_badge success">Approuve</span>{% else %}<span class="o_badge warning">Attente</span>{% endif %}</td>
+                    <td class="o_action_buttons">
+                        {% if not expense.approved_by and current_user.has_role('super_admin', 'comptable', 'admin_agence', 'secretaire') %}
+                        <a href="{{ url_for('approve_expense', id=expense.id) }}" class="btn-o btn-o-success btn-o-sm" onclick="return confirm('Approuver?')"><i class="bi bi-check-lg"></i></a>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="9" style="text-align:center;padding:32px;color:var(--o-text-muted);"><i class="bi bi-cash" style="font-size:32px;display:block;margin-bottom:8px;"></i>Aucune depense</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
