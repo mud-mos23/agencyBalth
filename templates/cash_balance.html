@@ -23,11 +23,13 @@
                 <br>{{ b.currency }}
             </small>
         </div>
+        {% if not is_guichetier %}
         <div style="margin-left:auto;">
             <button class="btn-o btn-o-secondary btn-o-sm" onclick="showEdit({{ b.id }}, '{{ b.agency.name }}', '{{ b.currency }}', {{ b.opening_balance }})">
                 <i class="bi bi-gear"></i>
             </button>
         </div>
+        {% endif %}
     </div>
     {% else %}
     <div class="o_card"><div class="o_card_body" style="text-align:center;padding:32px;color:var(--o-text-muted);">Aucune caisse</div></div>

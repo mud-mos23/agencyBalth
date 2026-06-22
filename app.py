@@ -505,6 +505,9 @@ def delete_commission(id):
 @login_required
 def virtual_stocks():
     if request.method == 'POST':
+        if current_user.role == 'guichetier':
+            flash('Action non autorisee.', 'danger')
+            return redirect(url_for('virtual_stocks'))
         stock_id = request.form.get('stock_id', type=int)
         opening = request.form.get('opening_balance', type=float)
         stock = VirtualStock.query.get_or_404(stock_id)
@@ -563,6 +566,9 @@ def virtual_stocks():
 @login_required
 def cash_balance():
     if request.method == 'POST':
+        if current_user.role == 'guichetier':
+            flash('Action non autorisee.', 'danger')
+            return redirect(url_for('cash_balance'))
         cash_id = request.form.get('cash_id', type=int)
         opening = request.form.get('opening_balance', type=float)
         cash = CashBalance.query.get_or_404(cash_id)

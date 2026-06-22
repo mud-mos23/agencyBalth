@@ -31,11 +31,13 @@
                 <br>{{ s.operation_type.name }} - {{ s.currency }}
             </small>
         </div>
+        {% if not is_guichetier %}
         <div style="margin-left:auto;">
             <button class="btn-o btn-o-secondary btn-o-sm" onclick="showEdit({{ s.id }}, '{{ s.operation_type.name }}', '{{ s.agency.name }}', '{{ s.currency }}', {{ s.opening_balance }})">
                 <i class="bi bi-gear"></i>
             </button>
         </div>
+        {% endif %}
     </div>
     {% else %}
     <div class="o_card"><div class="o_card_body" style="text-align:center;padding:32px;color:var(--o-text-muted);">Aucun stock virtuel</div></div>
