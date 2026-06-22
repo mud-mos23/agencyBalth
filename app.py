@@ -75,8 +75,8 @@ def profile():
     user = current_user
     if request.method == 'POST':
         user.full_name = request.form.get('full_name', user.full_name)
-        user.email = request.form.get('email', user.email)
-        user.phone = request.form.get('phone', user.phone)
+        user.email = request.form.get('email') or None
+        user.phone = request.form.get('phone') or None
         password = request.form.get('password')
         if password:
             user.set_password(password)
@@ -231,8 +231,8 @@ def add_user():
         user = User(
             username=form.username.data,
             full_name=form.full_name.data,
-            email=form.email.data,
-            phone=form.phone.data,
+            email=form.email.data or None,
+            phone=form.phone.data or None,
             role=form.role.data,
             agency_id=form.agency_id.data if form.agency_id.data != 0 else None
         )
@@ -255,8 +255,8 @@ def edit_user(id):
     if form.validate_on_submit():
         user.username = form.username.data
         user.full_name = form.full_name.data
-        user.email = form.email.data
-        user.phone = form.phone.data
+        user.email = form.email.data or None
+        user.phone = form.phone.data or None
         user.role = form.role.data
         user.agency_id = form.agency_id.data if form.agency_id.data != 0 else None
         if form.password.data:
