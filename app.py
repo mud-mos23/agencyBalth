@@ -404,40 +404,32 @@ def validate_operation(id):
     )
     db.session.add(log2)
 
-    stock = VirtualStock.query.filter_by(
-        agency_id=op.agency_id,
-        operation_type_id=op.operation_type_id,
-        currency=op.currency
-    ).first()
-    if not stock:
-        stock = VirtualStock(
-            agency_id=op.agency_id,
-            operation_type_id=op.operation_type_id,
-            currency=op.currency,
-            opening_balance=0.0,
-            current_balance=0.0
-        )
-        db.session.add(stock)
-    if op.direction == 'depot':
-        stock.current_balance += op.amount
-    else:
-        stock.current_balance -= op.amount
+    def update_stock(model, extra_filter, direction, amount):
+        entry = model.query.filter_by(
+            agency_id=op.agency_id, currency=op.currency, **extra_filter
+        ).first()
+        if not entry:
+            entry = model(
+                agency_id=op.agency_id, currency=op.currency,
+                opening_balance=0.0, current_balance=0.0, **extra_filter
+            )
+            db.session.add(entry)
+        if direction == 'depot':
+            entry.current_balance += amount
+        else:
+            entry.current_balance -= amount
 
-    cash = CashBalance.query.filter_by(
-        agency_id=op.agency_id, currency=op.currency
-    ).first()
-    if not cash:
-        cash = CashBalance(
-            agency_id=op.agency_id,
-            currency=op.currency,
-            opening_balance=0.0,
-            current_balance=0.0
-        )
-        db.session.add(cash)
-    if op.direction == 'depot':
-        cash.current_balance -= op.amount
-    else:
-        cash.current_balance += op.amount
+    stock_filters = {'operation_type_id': op.operation_type_id, 'user_id': None}
+    cash_filters = {'user_id': None}
+    update_stock(VirtualStock, stock_filters, op.direction, op.amount)
+    update_stock(CashBalance, cash_filters, op.direction, op.amount)
+
+    if op.guichetier_id:
+        stock_filters['user_id'] = op.guichetier_id
+        cash_filters['user_id'] = op.guichetier_id
+        update_stock(VirtualStock, stock_filters, op.direction, op.amount)
+        update_stock(CashBalance, cash_filters, op.direction, op.amount)
+
     db.session.commit()
     flash('Operation validee avec succes.', 'success')
     return redirect(url_for('list_operations'))
@@ -513,12 +505,7 @@ def delete_commission(id):
 
 @app.route('/stocks-virtuels', methods=['GET', 'POST'])
 @login_required
-@role_required('super_admin', 'admin_agence', 'secretaire')
 def virtual_stocks():
-    query = VirtualStock.query
-    if current_user.role != 'super_admin':
-        query = query.filter_by(agency_id=current_user.agency_id)
-
     if request.method == 'POST':
         stock_id = request.form.get('stock_id', type=int)
         opening = request.form.get('opening_balance', type=float)
@@ -530,37 +517,53 @@ def virtual_stocks():
             flash('Solde d ouverture mis a jour.', 'success')
         return redirect(url_for('virtual_stocks'))
 
+    query = VirtualStock.query
+    if current_user.role == 'guichetier':
+        guichetier_id = current_user.id
+        query = query.filter_by(user_id=guichetier_id)
+    else:
+        query = query.filter_by(user_id=None)
+        if current_user.role != 'super_admin':
+            query = query.filter_by(agency_id=current_user.agency_id)
+
     op_types = OperationType.query.filter_by(is_active=True).all()
     agencies = Agency.query.filter_by(is_active=True).all() if current_user.role == 'super_admin' else [current_user.agency]
 
-    for ot in op_types:
-        for a in agencies:
+    if current_user.role == 'guichetier':
+        for ot in op_types:
             for cur in ('USD', 'FC'):
                 existing = VirtualStock.query.filter_by(
-                    agency_id=a.id, operation_type_id=ot.id, currency=cur
+                    user_id=current_user.id, operation_type_id=ot.id, currency=cur
                 ).first()
                 if not existing:
                     vs = VirtualStock(
-                        agency_id=a.id,
-                        operation_type_id=ot.id,
-                        currency=cur,
-                        opening_balance=0.0,
-                        current_balance=0.0
+                        agency_id=current_user.agency_id or 1,
+                        operation_type_id=ot.id, currency=cur,
+                        user_id=current_user.id,
+                        opening_balance=0.0, current_balance=0.0
                     )
                     db.session.add(vs)
+    else:
+        for ot in op_types:
+            for a in agencies:
+                for cur in ('USD', 'FC'):
+                    existing = VirtualStock.query.filter_by(
+                        agency_id=a.id, operation_type_id=ot.id, currency=cur, user_id=None
+                    ).first()
+                    if not existing:
+                        vs = VirtualStock(
+                            agency_id=a.id, operation_type_id=ot.id, currency=cur,
+                            user_id=None, opening_balance=0.0, current_balance=0.0
+                        )
+                        db.session.add(vs)
     db.session.commit()
 
-    stocks = query.order_by(VirtualStock.agency_id, VirtualStock.operation_type_id, VirtualStock.currency).all()
-    return render_template('virtual_stocks.html', stocks=stocks, op_types=op_types)
+    stocks = query.order_by(VirtualStock.operation_type_id, VirtualStock.currency).all()
+    return render_template('virtual_stocks.html', stocks=stocks, op_types=op_types, is_guichetier=current_user.role == 'guichetier')
 
 @app.route('/cash-balance', methods=['GET', 'POST'])
 @login_required
-@role_required('super_admin', 'admin_agence', 'secretaire')
 def cash_balance():
-    query = CashBalance.query
-    if current_user.role != 'super_admin':
-        query = query.filter_by(agency_id=current_user.agency_id)
-
     if request.method == 'POST':
         cash_id = request.form.get('cash_id', type=int)
         opening = request.form.get('opening_balance', type=float)
@@ -572,17 +575,36 @@ def cash_balance():
             flash('Solde de caisse mis a jour.', 'success')
         return redirect(url_for('cash_balance'))
 
+    query = CashBalance.query
+    if current_user.role == 'guichetier':
+        query = query.filter_by(user_id=current_user.id)
+    else:
+        query = query.filter_by(user_id=None)
+        if current_user.role != 'super_admin':
+            query = query.filter_by(agency_id=current_user.agency_id)
+
     agencies = Agency.query.filter_by(is_active=True).all() if current_user.role == 'super_admin' else [current_user.agency]
-    for a in agencies:
+
+    if current_user.role == 'guichetier':
         for cur in ('USD', 'FC'):
-            existing = CashBalance.query.filter_by(agency_id=a.id, currency=cur).first()
+            existing = CashBalance.query.filter_by(user_id=current_user.id, currency=cur).first()
             if not existing:
-                cb = CashBalance(agency_id=a.id, currency=cur, opening_balance=0.0, current_balance=0.0)
+                cb = CashBalance(
+                    agency_id=current_user.agency_id or 1, currency=cur,
+                    user_id=current_user.id, opening_balance=0.0, current_balance=0.0
+                )
                 db.session.add(cb)
+    else:
+        for a in agencies:
+            for cur in ('USD', 'FC'):
+                existing = CashBalance.query.filter_by(agency_id=a.id, currency=cur, user_id=None).first()
+                if not existing:
+                    cb = CashBalance(agency_id=a.id, currency=cur, user_id=None, opening_balance=0.0, current_balance=0.0)
+                    db.session.add(cb)
     db.session.commit()
 
-    balances = query.order_by(CashBalance.agency_id, CashBalance.currency).all()
-    return render_template('cash_balance.html', balances=balances)
+    balances = query.order_by(CashBalance.currency).all()
+    return render_template('cash_balance.html', balances=balances, is_guichetier=current_user.role == 'guichetier')
 
 @app.route('/comptabilite')
 @login_required
