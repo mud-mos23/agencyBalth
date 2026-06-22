@@ -41,6 +41,14 @@ Acces : http://localhost:5000
 | Guichetier | guichetier | guichetier123 |
 | Secretaire | secretaire | secretaire123 |
 
+## Captures d'ecran
+
+![Page de connexion](static/images/login.png)
+*Page de connexion*
+
+![Tableau de bord](static/images/dashboard.png)
+*Tableau de bord apres connexion*
+
 ## Documentation
 
 Une documentation detaillee par poste est accessible dans l'application 
