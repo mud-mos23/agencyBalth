@@ -19,11 +19,7 @@
             <tbody>
                 {% for config in configs %}
                 <tr>
-                    <td>
-                        {% set icon = config.operation_type.name|op_icon %}
-                        {% if icon %}<img src="{{ icon }}" alt="{{ config.operation_type.name }}" style="height:16px;margin-right:4px;vertical-align:middle;">{% endif %}
-                        {{ config.operation_type.name }}
-                    </td>
+                    <td>{{ config.operation_type.name }}</td>
                     <td>{{ config.direction|title }}</td>
                     <td>{{ "%.1f"|format(config.percentage) }}%</td>
                     <td>${{ "%.2f"|format(config.fixed_amount) }}</td>

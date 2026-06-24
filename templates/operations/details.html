@@ -20,7 +20,7 @@
                 <tr><td style="font-weight:600;width:140px;color:var(--o-text-muted);">Reference</td><td><strong>{{ op.reference }}</strong></td></tr>
                 <tr><td style="font-weight:600;width:140px;color:var(--o-text-muted);">Agence</td><td>{{ op.agency.name }}</td></tr>
                 <tr><td style="font-weight:600;width:140px;color:var(--o-text-muted);">Guichetier</td><td>{{ op.guichetier.full_name }}</td></tr>
-                <tr><td style="font-weight:600;width:140px;color:var(--o-text-muted);">Type</td><td>{% set icon = op.operation_type.name|op_icon %}{% if icon %}<img src="{{ icon }}" alt="{{ op.operation_type.name }}" style="height:18px;margin-right:6px;vertical-align:middle;">{% endif %}{{ op.operation_type.name }}</td></tr>
+                <tr><td style="font-weight:600;width:140px;color:var(--o-text-muted);">Type</td><td>{{ op.operation_type.name }}</td></tr>
                 <tr><td style="font-weight:600;width:140px;color:var(--o-text-muted);">Operation</td><td>{% if op.direction == 'depot' %}<span class="o_badge primary">Depot</span>{% else %}<span class="o_badge warning">Retrait</span>{% endif %}</td></tr>
                 <tr><td style="font-weight:600;width:140px;color:var(--o-text-muted);">Devise</td><td><span class="o_badge info">{{ op.currency }}</span></td></tr>
                 <tr><td style="font-weight:600;width:140px;color:var(--o-text-muted);">Statut</td><td>{% if op.status == 'validated' %}<span class="o_badge success">Valide</span>{% elif op.status == 'rejected' %}<span class="o_badge danger">Rejete</span>{% else %}<span class="o_badge warning">Attente</span>{% endif %}</td></tr>
