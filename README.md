@@ -99,6 +99,15 @@ Acces : http://localhost:5000
 ![Tableau de bord](static/images/dashboard.png)
 *Tableau de bord apres connexion*
 
+![Comptabilite](static/images/comptabilité.png)
+*Vue comptabilite*
+
+![Stocks virtuels](static/images/stockvirtuel.png)
+*Suivi des stocks virtuels par type d'operation et par guichetier*
+
+![Vue guichetier](static/images/guichetier.png)
+*Interface guichetier - operations et soldes*
+
 ## Documentation
 
 Une documentation detaillee par poste est accessible dans l'application
