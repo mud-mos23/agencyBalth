@@ -7,6 +7,14 @@
 </div>
 {% endblock %}
 {% block content %}
+<style>
+.dialog-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.4); z-index:9999; align-items:center; justify-content:center; }
+.dialog-overlay.show { display:flex; }
+.dialog-box { background:#fff; border-radius:12px; width:400px; max-width:90vw; box-shadow:0 8px 32px rgba(0,0,0,.25); }
+.dialog-box .dialog-header { padding:16px 20px; border-bottom:1px solid var(--o-border); font-weight:600; font-size:15px; }
+.dialog-box .dialog-body { padding:16px 20px; }
+.dialog-box .dialog-footer { padding:12px 20px; border-top:1px solid var(--o-border); display:flex; gap:8px; justify-content:flex-end; }
+</style>
 {% if is_guichetier %}
 <div class="o_stat_cards">
     {% for b in balances %}
@@ -99,39 +107,40 @@
 {% endfor %}
 {% endif %}
 
-<div class="modal fade" id="editModal" tabindex="-1">
-    <div class="modal-dialog modal-sm">
-        <div class="modal-content" style="border-radius:8px;border:1px solid var(--o-border);">
-            <form method="POST">
-                <div class="modal-header" style="border-bottom:1px solid var(--o-border);padding:12px 16px;">
-                    <h6 class="modal-title" style="font-weight:600;">Modifier le solde d'ouverture</h6>
+<div class="dialog-overlay" id="editDialog">
+    <div class="dialog-box">
+        <form method="POST">
+            <div class="dialog-header">Modifier le solde d'ouverture</div>
+            <div class="dialog-body">
+                <input type="hidden" name="cash_id" id="cash_id">
+                <p style="font-size:13px;margin:0 0 12px;color:var(--o-text-muted);" id="cash_info"></p>
+                <div class="o_field">
+                    <label>Nouveau solde d'ouverture</label>
+                    <input type="number" step="0.01" name="opening_balance" id="opening_balance" class="form-control" required>
                 </div>
-                <div class="modal-body" style="padding:16px;">
-                    <input type="hidden" name="cash_id" id="cash_id">
-                    <p style="font-size:13px;margin:0 0 8px;" id="cash_info"></p>
-                    <div class="o_field">
-                        <label>Nouveau solde d'ouverture</label>
-                        <input type="number" step="0.01" name="opening_balance" id="opening_balance" class="form-control" required>
-                    </div>
-                    <p style="font-size:12px;color:var(--o-text-muted);margin:4px 0 0;">Ceci reinitialisera le solde courant.</p>
-                </div>
-                <div class="modal-footer" style="border-top:1px solid var(--o-border);padding:8px 16px;">
-                    <button type="button" class="btn-o btn-o-secondary" data-bs-dismiss="modal">Annuler</button>
-                    <button type="submit" class="btn-o btn-o-primary"><i class="bi bi-check-lg"></i> Enregistrer</button>
-                </div>
-            </form>
-        </div>
+                <p style="font-size:12px;color:var(--o-text-muted);margin:8px 0 0;">Ceci reinitialisera le solde courant.</p>
+            </div>
+            <div class="dialog-footer">
+                <button type="button" class="btn-o btn-o-secondary" onclick="closeEdit()">Annuler</button>
+                <button type="submit" class="btn-o btn-o-primary"><i class="bi bi-check-lg"></i> Enregistrer</button>
+            </div>
+        </form>
     </div>
 </div>
 {% endblock %}
 {% block scripts %}
 <script>
-var editModal = new bootstrap.Modal(document.getElementById('editModal'));
 function showEdit(id, owner, currency, balance) {
     document.getElementById('cash_id').value = id;
     document.getElementById('cash_info').textContent = owner + ' - Caisse (' + currency + ')';
     document.getElementById('opening_balance').value = balance;
-    editModal.show();
+    document.getElementById('editDialog').classList.add('show');
 }
+function closeEdit() {
+    document.getElementById('editDialog').classList.remove('show');
+}
+document.getElementById('editDialog').addEventListener('click', function(e) {
+    if (e.target === this) closeEdit();
+});
 </script>
 {% endblock %}
