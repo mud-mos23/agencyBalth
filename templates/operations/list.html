@@ -48,7 +48,11 @@
                 <tr>
                     <td><a href="{{ url_for('view_operation', id=op.id) }}" style="color:var(--o-primary);text-decoration:none;font-weight:500;">{{ op.reference }}</a></td>
                     <td>{{ op.agency.name }}</td>
-                    <td>{{ op.operation_type.name }}</td>
+                    <td>
+                        {% set icon = op.operation_type.name|op_icon %}
+                        {% if icon %}<img src="{{ icon }}" alt="{{ op.operation_type.name }}" style="height:16px;margin-right:4px;vertical-align:middle;">{% endif %}
+                        {{ op.operation_type.name }}
+                    </td>
                     <td>{% if op.direction == 'depot' %}<span class="o_badge primary">Depot</span>{% else %}<span class="o_badge warning">Retrait</span>{% endif %}</td>
                     <td>{{ op.client_name }}</td>
                     <td><strong>{% if op.currency == 'FC' %}{{ "%.0f"|format(op.amount) }} FC{% else %}${{ "%.2f"|format(op.amount) }}{% endif %}</strong></td>

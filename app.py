@@ -19,6 +19,16 @@ login_manager.init_app(app)
 login_manager.login_view = 'login'
 login_manager.login_message = 'Veuillez vous connecter pour acceder a cette page.'
 
+OP_ICONS = {
+    'Orange Money': 'orange_money.png',
+    'Airtel Money': 'airtel_money.png',
+    'M-Pesa': 'mpesa.png',
+}
+
+@app.template_filter('op_icon')
+def op_icon_filter(name):
+    return url_for('static', filename=f'images/{OP_ICONS.get(name, "")}') if name in OP_ICONS else None
+
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
