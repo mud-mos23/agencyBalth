@@ -1,18 +1,43 @@
 # Ets Balthazar - Gestion de transferts d'argent
 
-Application web de gestion des transferts d'argent pour les agences. 
-Permet d'enregistrer les operations de depot/retrait (Orange Money, Airtel Money, M-Pesa), 
+Application web de gestion des transferts d'argent pour les agences.
+Permet d'enregistrer les operations de depot/retrait (Orange Money, Airtel Money, M-Pesa),
 de gerer les depenses, la comptabilite, et de generer des rapports.
 
 ## Fonctionnalites
 
 - **Operations** - Creation, validation et suivi des transferts
+- **Stocks virtuels** - Suivi des stocks par type d'operation et par devise, par agence et par guichetier
+- **Caisse / Liquidite** - Solde de caisse par devise, par agence et par guichetier
 - **Depenses** - Enregistrement et approbation
 - **Comptabilite** - Ecritures automatiques, soldes par devise
 - **Rapports** - Statistiques par periode et agence
 - **Agences** - Gestion multi-agence
 - **Utilisateurs** - 5 roles avec permissions distinctes
 - **Commissions** - Configuration des baremes (pourcentage + fixe)
+
+## Roles et permissions
+
+| Role | Permissions |
+|------|-------------|
+| **Super Admin** | Acces total a toutes les agences |
+| **Admin Agence** | Gere son agence : utilisateurs, stocks, caisse, operations, depenses |
+| **Secretaire** | Gere les utilisateurs et consulte les donnees de l'agence |
+| **Comptable** | Consulte et rapports, validation des depenses |
+| **Guichetier** | Cree et suit ses propres operations, consulte ses stocks/caisse (lecture seule) |
+
+## Stocks et Caisse
+
+- **Stocks virtuels** par type d'operation (Orange Money, Airtel Money, M-Pesa) et par devise (USD, FC)
+- **Caisse** par devise (USD, FC)
+- Les stocks et caisses sont suivis **par agence** et **par guichetier**
+- Mis a jour automatiquement a la validation d'une operation :
+  - Depot : +stock, -caisse
+  - Retrait : -stock, +caisse
+- **Super Admin / Admin Agence** : peuvent configurer les soldes d'ouverture pour chaque guichetier
+  - Sur la page de creation/modification d'un utilisateur guichetier
+  - Ou directement sur les pages Stocks / Caisse
+- **Guichetier** : voit ses propres soldes en lecture seule
 
 ## Technologies
 
@@ -61,6 +86,7 @@ Acces : http://localhost:5000
 | Role | Identifiant | Mot de passe |
 |------|-------------|--------------|
 | Super Admin | admin | admin123 |
+| Admin Agence | admin_agence | admin123 |
 | Comptable | comptable | comptable123 |
 | Guichetier | guichetier | guichetier123 |
 | Secretaire | secretaire | secretaire123 |
@@ -75,5 +101,5 @@ Acces : http://localhost:5000
 
 ## Documentation
 
-Une documentation detaillee par poste est accessible dans l'application 
+Une documentation detaillee par poste est accessible dans l'application
 via le menu **Compte > Documentation**.

@@ -222,6 +222,7 @@ def add_user():
 
     agencies = Agency.query.filter_by(is_active=True).all()
     form.agency_id.choices = [(0, 'Aucune')] + [(a.id, a.name) for a in agencies]
+    op_types = OperationType.query.filter_by(is_active=True).all()
 
     if form.validate_on_submit():
         user = User(
@@ -234,10 +235,24 @@ def add_user():
         )
         user.set_password(form.password.data)
         db.session.add(user)
+        db.session.flush()
+
+        if user.role == 'guichetier' and user.agency_id:
+            for cur in ('USD', 'FC'):
+                opening = form.cash_usd_opening.data if cur == 'USD' else form.cash_fc_opening.data
+                cb = CashBalance(agency_id=user.agency_id, currency=cur, user_id=user.id, opening_balance=opening or 0.0, current_balance=opening or 0.0)
+                db.session.add(cb)
+            for ot in op_types:
+                for cur in ('USD', 'FC'):
+                    key = f'stock_{ot.id}_{"usd" if cur == "USD" else "fc"}'
+                    opening = request.form.get(key, 0.0, type=float)
+                    vs = VirtualStock(agency_id=user.agency_id, operation_type_id=ot.id, currency=cur, user_id=user.id, opening_balance=opening, current_balance=opening)
+                    db.session.add(vs)
+
         db.session.commit()
         flash('Utilisateur cree avec succes.', 'success')
         return redirect(url_for('list_users'))
-    return render_template('users/form.html', form=form, title='Ajouter un utilisateur')
+    return render_template('users/form.html', form=form, title='Ajouter un utilisateur', op_types=op_types, stock_balances={})
 
 @app.route('/utilisateurs/modifier/<int:id>', methods=['GET', 'POST'])
 @login_required
@@ -247,6 +262,7 @@ def edit_user(id):
     form = UserForm(obj=user)
     agencies = Agency.query.filter_by(is_active=True).all()
     form.agency_id.choices = [(0, 'Aucune')] + [(a.id, a.name) for a in agencies]
+    op_types = OperationType.query.filter_by(is_active=True).all()
 
     if form.validate_on_submit():
         user.username = form.username.data
@@ -257,12 +273,42 @@ def edit_user(id):
         user.agency_id = form.agency_id.data if form.agency_id.data != 0 else None
         if form.password.data:
             user.set_password(form.password.data)
+        db.session.flush()
+
+        if user.role == 'guichetier' and user.agency_id:
+            for cur in ('USD', 'FC'):
+                opening = form.cash_usd_opening.data if cur == 'USD' else form.cash_fc_opening.data
+                cb = CashBalance.query.filter_by(user_id=user.id, currency=cur).first()
+                if cb:
+                    cb.opening_balance = opening or 0.0
+                    cb.current_balance = opening or 0.0
+                else:
+                    cb = CashBalance(agency_id=user.agency_id, currency=cur, user_id=user.id, opening_balance=opening or 0.0, current_balance=opening or 0.0)
+                    db.session.add(cb)
+            for ot in op_types:
+                for cur in ('USD', 'FC'):
+                    key = f'stock_{ot.id}_{"usd" if cur == "USD" else "fc"}'
+                    opening = request.form.get(key, 0.0, type=float)
+                    vs = VirtualStock.query.filter_by(user_id=user.id, operation_type_id=ot.id, currency=cur).first()
+                    if vs:
+                        vs.opening_balance = opening
+                        vs.current_balance = opening
+                    else:
+                        vs = VirtualStock(agency_id=user.agency_id, operation_type_id=ot.id, currency=cur, user_id=user.id, opening_balance=opening, current_balance=opening)
+                        db.session.add(vs)
+
         db.session.commit()
         flash('Utilisateur modifie avec succes.', 'success')
         return redirect(url_for('list_users'))
 
     form.agency_id.data = user.agency_id or 0
-    return render_template('users/form.html', form=form, title="Modifier l'utilisateur")
+    stock_balances = {}
+    if user.role == 'guichetier':
+        form.cash_usd_opening.data = CashBalance.query.filter_by(user_id=user.id, currency='USD').with_entities(CashBalance.opening_balance).scalar() or 0.0
+        form.cash_fc_opening.data = CashBalance.query.filter_by(user_id=user.id, currency='FC').with_entities(CashBalance.opening_balance).scalar() or 0.0
+        for vs in VirtualStock.query.filter_by(user_id=user.id).all():
+            stock_balances[f'{vs.operation_type_id}_{vs.currency}'] = vs.opening_balance
+    return render_template('users/form.html', form=form, title="Modifier l'utilisateur", op_types=op_types, stock_balances=stock_balances)
 
 @app.route('/utilisateurs/supprimer/<int:id>')
 @login_required
@@ -505,7 +551,7 @@ def delete_commission(id):
 @login_required
 def virtual_stocks():
     if request.method == 'POST':
-        if current_user.role == 'guichetier':
+        if current_user.role not in ('super_admin', 'admin_agence'):
             flash('Action non autorisee.', 'danger')
             return redirect(url_for('virtual_stocks'))
         stock_id = request.form.get('stock_id', type=int)
@@ -517,15 +563,6 @@ def virtual_stocks():
             db.session.commit()
             flash('Solde d ouverture mis a jour.', 'success')
         return redirect(url_for('virtual_stocks'))
-
-    query = VirtualStock.query
-    if current_user.role == 'guichetier':
-        guichetier_id = current_user.id
-        query = query.filter_by(user_id=guichetier_id)
-    else:
-        query = query.filter_by(user_id=None)
-        if current_user.role != 'super_admin':
-            query = query.filter_by(agency_id=current_user.agency_id)
 
     op_types = OperationType.query.filter_by(is_active=True).all()
     agencies = Agency.query.filter_by(is_active=True).all() if current_user.role == 'super_admin' else [current_user.agency]
@@ -544,29 +581,38 @@ def virtual_stocks():
                         opening_balance=0.0, current_balance=0.0
                     )
                     db.session.add(vs)
+        db.session.commit()
+        stocks = VirtualStock.query.filter_by(user_id=current_user.id).order_by(VirtualStock.operation_type_id, VirtualStock.currency).all()
+        return render_template('virtual_stocks.html', stocks=stocks, op_types=op_types, is_guichetier=True, can_edit=False)
     else:
-        for ot in op_types:
-            for a in agencies:
+        for a in agencies:
+            for ot in op_types:
                 for cur in ('USD', 'FC'):
                     existing = VirtualStock.query.filter_by(
                         agency_id=a.id, operation_type_id=ot.id, currency=cur, user_id=None
                     ).first()
                     if not existing:
-                        vs = VirtualStock(
-                            agency_id=a.id, operation_type_id=ot.id, currency=cur,
-                            user_id=None, opening_balance=0.0, current_balance=0.0
-                        )
+                        vs = VirtualStock(agency_id=a.id, operation_type_id=ot.id, currency=cur, user_id=None, opening_balance=0.0, current_balance=0.0)
                         db.session.add(vs)
-    db.session.commit()
+                    for u in User.query.filter_by(agency_id=a.id, role='guichetier', is_active=True).all():
+                        existing = VirtualStock.query.filter_by(
+                            agency_id=a.id, operation_type_id=ot.id, currency=cur, user_id=u.id
+                        ).first()
+                        if not existing:
+                            vs = VirtualStock(agency_id=a.id, operation_type_id=ot.id, currency=cur, user_id=u.id, opening_balance=0.0, current_balance=0.0)
+                            db.session.add(vs)
+        db.session.commit()
 
-    stocks = query.order_by(VirtualStock.operation_type_id, VirtualStock.currency).all()
-    return render_template('virtual_stocks.html', stocks=stocks, op_types=op_types, is_guichetier=current_user.role == 'guichetier')
+        agency_filter = {} if current_user.role == 'super_admin' else {'agency_id': current_user.agency_id}
+        guichetiers = User.query.filter_by(role='guichetier', is_active=True, **agency_filter).all()
+        stocks = VirtualStock.query.filter(**agency_filter).order_by(VirtualStock.user_id, VirtualStock.operation_type_id, VirtualStock.currency).all()
+        return render_template('virtual_stocks.html', stocks=stocks, op_types=op_types, guichetiers=guichetiers, is_guichetier=False, can_edit=current_user.role in ('super_admin', 'admin_agence'))
 
 @app.route('/cash-balance', methods=['GET', 'POST'])
 @login_required
 def cash_balance():
     if request.method == 'POST':
-        if current_user.role == 'guichetier':
+        if current_user.role not in ('super_admin', 'admin_agence'):
             flash('Action non autorisee.', 'danger')
             return redirect(url_for('cash_balance'))
         cash_id = request.form.get('cash_id', type=int)
@@ -579,25 +625,17 @@ def cash_balance():
             flash('Solde de caisse mis a jour.', 'success')
         return redirect(url_for('cash_balance'))
 
-    query = CashBalance.query
-    if current_user.role == 'guichetier':
-        query = query.filter_by(user_id=current_user.id)
-    else:
-        query = query.filter_by(user_id=None)
-        if current_user.role != 'super_admin':
-            query = query.filter_by(agency_id=current_user.agency_id)
-
     agencies = Agency.query.filter_by(is_active=True).all() if current_user.role == 'super_admin' else [current_user.agency]
 
     if current_user.role == 'guichetier':
         for cur in ('USD', 'FC'):
             existing = CashBalance.query.filter_by(user_id=current_user.id, currency=cur).first()
             if not existing:
-                cb = CashBalance(
-                    agency_id=current_user.agency_id or 1, currency=cur,
-                    user_id=current_user.id, opening_balance=0.0, current_balance=0.0
-                )
+                cb = CashBalance(agency_id=current_user.agency_id or 1, currency=cur, user_id=current_user.id, opening_balance=0.0, current_balance=0.0)
                 db.session.add(cb)
+        db.session.commit()
+        balances = CashBalance.query.filter_by(user_id=current_user.id).order_by(CashBalance.currency).all()
+        return render_template('cash_balance.html', balances=balances, is_guichetier=True, can_edit=False)
     else:
         for a in agencies:
             for cur in ('USD', 'FC'):
@@ -605,10 +643,17 @@ def cash_balance():
                 if not existing:
                     cb = CashBalance(agency_id=a.id, currency=cur, user_id=None, opening_balance=0.0, current_balance=0.0)
                     db.session.add(cb)
-    db.session.commit()
+                for u in User.query.filter_by(agency_id=a.id, role='guichetier', is_active=True).all():
+                    existing = CashBalance.query.filter_by(agency_id=a.id, currency=cur, user_id=u.id).first()
+                    if not existing:
+                        cb = CashBalance(agency_id=a.id, currency=cur, user_id=u.id, opening_balance=0.0, current_balance=0.0)
+                        db.session.add(cb)
+        db.session.commit()
 
-    balances = query.order_by(CashBalance.currency).all()
-    return render_template('cash_balance.html', balances=balances, is_guichetier=current_user.role == 'guichetier')
+        agency_filter = {} if current_user.role == 'super_admin' else {'agency_id': current_user.agency_id}
+        guichetiers = User.query.filter_by(role='guichetier', is_active=True, **agency_filter).all()
+        balances = CashBalance.query.filter(**agency_filter).order_by(CashBalance.user_id, CashBalance.currency).all()
+        return render_template('cash_balance.html', balances=balances, guichetiers=guichetiers, is_guichetier=False, can_edit=current_user.role in ('super_admin', 'admin_agence'))
 
 @app.route('/comptabilite')
 @login_required

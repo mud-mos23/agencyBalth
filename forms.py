@@ -26,6 +26,8 @@ class UserForm(FlaskForm):
         ('secretaire', 'Secrétaire')
     ], validators=[DataRequired()])
     agency_id = SelectField("Agence", coerce=int, validators=[Optional()])
+    cash_usd_opening = FloatField("Solde ouverture Caisse USD", validators=[Optional()])
+    cash_fc_opening = FloatField("Solde ouverture Caisse FC", validators=[Optional()])
 
 class OperationForm(FlaskForm):
     operation_type_id = SelectField("Type d'opération", coerce=int, validators=[DataRequired()])
