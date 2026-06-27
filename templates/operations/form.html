@@ -53,7 +53,7 @@ $(document).ready(function() {
         var direction = $('#direction').val();
         var amount = $('#amount').val();
         if (opTypeId && direction && amount && parseFloat(amount) > 0) {
-            $.get('/api/commission', { operation_type_id: opTypeId, direction: direction, amount: parseFloat(amount) }, function(data) {
+            $.get('/api/commission', { operation_type_id: opTypeId, direction: direction, amount: parseFloat(amount), currency: $('#currency').val() }, function(data) {
                 var cur = $('#currency').val();
                 var dec = (cur === 'FC') ? 0 : 2;
                 $('#commissionDisplay').val(data.total.toFixed(dec));

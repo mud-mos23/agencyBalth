@@ -14,7 +14,7 @@
     <div class="o_card_body p-0">
         <table class="o_list_view">
             <thead>
-                <tr><th>Type</th><th>Direction</th><th>Pourcentage</th><th>Montant fixe</th><th>Min</th><th>Max</th><th>Statut</th><th class="o_action_buttons">Actions</th></tr>
+                <tr><th>Type</th><th>Direction</th><th>Pourcentage</th><th>Fixe USD</th><th>Fixe FC</th><th>Min</th><th>Max</th><th>Statut</th><th class="o_action_buttons">Actions</th></tr>
             </thead>
             <tbody>
                 {% for config in configs %}
@@ -27,6 +27,7 @@
                     <td>{{ config.direction|title }}</td>
                     <td>{{ "%.1f"|format(config.percentage) }}%</td>
                     <td>${{ "%.2f"|format(config.fixed_amount) }}</td>
+                    <td>{{ "%.0f"|format(config.fixed_amount_fc) }} FC</td>
                     <td>${{ "%.2f"|format(config.min_amount) }}</td>
                     <td>{{ '$%.2f'|format(config.max_amount) if config.max_amount else 'Illimite' }}</td>
                     <td>{% if config.is_active %}<span class="o_badge success">Active</span>{% else %}<span class="o_badge warning">Inactive</span>{% endif %}</td>
@@ -35,7 +36,7 @@
                     </td>
                 </tr>
                 {% else %}
-                <tr><td colspan="8" style="text-align:center;padding:32px;color:var(--o-text-muted);"><i class="bi bi-percent" style="font-size:32px;display:block;margin-bottom:8px;"></i>Aucune configuration</td></tr>
+                <tr><td colspan="9" style="text-align:center;padding:32px;color:var(--o-text-muted);"><i class="bi bi-percent" style="font-size:32px;display:block;margin-bottom:8px;"></i>Aucune configuration</td></tr>
                 {% endfor %}
             </tbody>
         </table>

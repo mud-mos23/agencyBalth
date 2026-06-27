@@ -53,6 +53,7 @@ class CommissionConfig(db.Model):
     direction = db.Column(db.String(20), nullable=False, default='depot')
     percentage = db.Column(db.Float, default=0.0)
     fixed_amount = db.Column(db.Float, default=0.0)
+    fixed_amount_fc = db.Column(db.Float, default=0.0)
     min_amount = db.Column(db.Float, default=0.0)
     max_amount = db.Column(db.Float, nullable=True)
     is_active = db.Column(db.Boolean, default=True)

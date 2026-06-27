@@ -1,4 +1,4 @@
-# Ets Balthazar - Gestion de transferts d'argent
+# ETS BALTA - Gestion de transferts d'argent
 
 Application web de gestion des transferts d'argent pour les agences.
 Permet d'enregistrer les operations de depot/retrait (Orange Money, Airtel Money, M-Pesa),

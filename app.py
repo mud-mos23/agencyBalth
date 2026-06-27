@@ -23,6 +23,8 @@ OP_ICONS = {
     'Orange Money': 'orange_money.png',
     'Airtel Money': 'airtel_money.png',
     'M-Pesa': 'mpesa.png',
+    'Pepete Mobile': 'pepete.png',
+    'Equity': 'equity.png',
 }
 
 @app.template_filter('op_icon')
@@ -372,7 +374,7 @@ def add_operation():
 
     if form.validate_on_submit():
         op_type = OperationType.query.get(form.operation_type_id.data)
-        commission = calc_commission(form.operation_type_id.data, form.direction.data, form.amount.data)
+        commission = calc_commission(form.operation_type_id.data, form.direction.data, form.amount.data, form.currency.data)
 
         ref = f"TRF-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}-{current_user.id}"
 
@@ -399,7 +401,7 @@ def add_operation():
         return redirect(url_for('list_operations'))
     return render_template('operations/form.html', form=form, title='Nouvelle operation')
 
-def calc_commission(op_type_id, direction, amount):
+def calc_commission(op_type_id, direction, amount, currency='USD'):
     configs = CommissionConfig.query.filter_by(
         operation_type_id=op_type_id,
         direction=direction,
@@ -415,7 +417,9 @@ def calc_commission(op_type_id, direction, amount):
             continue
         if cfg.percentage:
             pct = cfg.percentage
-        if cfg.fixed_amount:
+        if currency == 'FC' and cfg.fixed_amount_fc:
+            fixed = cfg.fixed_amount_fc
+        elif currency == 'USD' and cfg.fixed_amount:
             fixed = cfg.fixed_amount
 
     total = (amount * pct / 100) + fixed
@@ -512,9 +516,10 @@ def api_commission():
     op_type_id = request.args.get('operation_type_id', type=int)
     direction = request.args.get('direction')
     amount = request.args.get('amount', type=float)
+    currency = request.args.get('currency', 'USD')
     if not all([op_type_id, direction, amount]):
         return jsonify({'percentage': 0, 'fixed': 0, 'total': 0})
-    commission = calc_commission(op_type_id, direction, amount)
+    commission = calc_commission(op_type_id, direction, amount, currency)
     return jsonify(commission)
 
 @app.route('/commissions')
@@ -538,6 +543,7 @@ def add_commission():
             direction=form.direction.data,
             percentage=form.percentage.data or 0,
             fixed_amount=form.fixed_amount.data or 0,
+            fixed_amount_fc=form.fixed_amount_fc.data or 0,
             min_amount=form.min_amount.data or 0,
             max_amount=form.max_amount.data or None
         )
@@ -853,6 +859,11 @@ def init_db():
                 conn.commit()
             except sqlite3.OperationalError:
                 pass
+        try:
+            c.execute('ALTER TABLE commission_configs ADD COLUMN fixed_amount_fc FLOAT DEFAULT 0.0')
+            conn.commit()
+        except sqlite3.OperationalError:
+            pass
         conn.close()
     except Exception:
         pass
@@ -862,6 +873,8 @@ def init_db():
             OperationType(name='Orange Money', description='Transfert via Orange Money'),
             OperationType(name='Airtel Money', description='Transfert via Airtel Money'),
             OperationType(name='M-Pesa', description='Transfert via M-Pesa'),
+            OperationType(name='Pepete Mobile', description='Transfert via Pepete Mobile'),
+            OperationType(name='Equity', description='Transfert via Equity'),
         ]
         db.session.add_all(types)
         db.session.commit()

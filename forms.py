@@ -49,6 +49,7 @@ class CommissionForm(FlaskForm):
     ], validators=[DataRequired()])
     percentage = FloatField("Pourcentage (%)", validators=[Optional(), NumberRange(min=0)])
     fixed_amount = FloatField("Montant fixe (USD)", validators=[Optional(), NumberRange(min=0)])
+    fixed_amount_fc = FloatField("Montant fixe (FC)", validators=[Optional(), NumberRange(min=0)])
     min_amount = FloatField("Montant minimum (USD)", validators=[Optional(), NumberRange(min=0)])
     max_amount = FloatField("Montant maximum (USD)", validators=[Optional(), NumberRange(min=0)])
 
