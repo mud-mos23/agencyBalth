@@ -868,16 +868,16 @@ def init_db():
     except Exception:
         pass
 
-    if not OperationType.query.first():
-        types = [
-            OperationType(name='Orange Money', description='Transfert via Orange Money'),
-            OperationType(name='Airtel Money', description='Transfert via Airtel Money'),
-            OperationType(name='M-Pesa', description='Transfert via M-Pesa'),
-            OperationType(name='Pepete Mobile', description='Transfert via Pepete Mobile'),
-            OperationType(name='Equity', description='Transfert via Equity'),
-        ]
-        db.session.add_all(types)
-        db.session.commit()
+    for name, desc in [
+        ('Orange Money', 'Transfert via Orange Money'),
+        ('Airtel Money', 'Transfert via Airtel Money'),
+        ('M-Pesa', 'Transfert via M-Pesa'),
+        ('Pepete Mobile', 'Transfert via Pepete Mobile'),
+        ('Equity', 'Transfert via Equity'),
+    ]:
+        if not OperationType.query.filter_by(name=name).first():
+            db.session.add(OperationType(name=name, description=desc))
+    db.session.commit()
 
         for ot in types:
             for direction in ['depot', 'retrait']:
