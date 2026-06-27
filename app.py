@@ -879,7 +879,8 @@ def init_db():
             db.session.add(OperationType(name=name, description=desc))
     db.session.commit()
 
-        for ot in types:
+    if not CommissionConfig.query.first():
+        for ot in OperationType.query.filter_by(is_active=True).all():
             for direction in ['depot', 'retrait']:
                 cfg = CommissionConfig(
                     operation_type_id=ot.id,
