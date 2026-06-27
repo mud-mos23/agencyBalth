@@ -621,8 +621,8 @@ def virtual_stocks():
 
         agency_filter = {} if current_user.role == 'super_admin' else {'agency_id': current_user.agency_id}
         guichetiers = User.query.filter_by(role='guichetier', is_active=True, **agency_filter).all()
-        stocks = VirtualStock.query.filter(**agency_filter).order_by(VirtualStock.user_id, VirtualStock.operation_type_id, VirtualStock.currency).all()
-        return render_template('virtual_stocks.html', stocks=stocks, op_types=op_types, guichetiers=guichetiers, is_guichetier=False, can_edit=current_user.role in ('super_admin', 'admin_agence'))
+        stocks = VirtualStock.query.filter(**agency_filter).order_by(VirtualStock.agency_id, VirtualStock.user_id, VirtualStock.operation_type_id, VirtualStock.currency).all()
+        return render_template('virtual_stocks.html', stocks=stocks, op_types=op_types, guichetiers=guichetiers, agencies=agencies, is_guichetier=False, can_edit=current_user.role in ('super_admin', 'admin_agence'))
 
 @app.route('/cash-balance', methods=['GET', 'POST'])
 @login_required
@@ -668,8 +668,8 @@ def cash_balance():
 
         agency_filter = {} if current_user.role == 'super_admin' else {'agency_id': current_user.agency_id}
         guichetiers = User.query.filter_by(role='guichetier', is_active=True, **agency_filter).all()
-        balances = CashBalance.query.filter(**agency_filter).order_by(CashBalance.user_id, CashBalance.currency).all()
-        return render_template('cash_balance.html', balances=balances, guichetiers=guichetiers, is_guichetier=False, can_edit=current_user.role in ('super_admin', 'admin_agence'))
+        balances = CashBalance.query.filter(**agency_filter).order_by(CashBalance.agency_id, CashBalance.user_id, CashBalance.currency).all()
+        return render_template('cash_balance.html', balances=balances, guichetiers=guichetiers, agencies=agencies, is_guichetier=False, can_edit=current_user.role in ('super_admin', 'admin_agence'))
 
 @app.route('/comptabilite')
 @login_required

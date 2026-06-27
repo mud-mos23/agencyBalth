@@ -46,34 +46,54 @@
     {% endfor %}
 </div>
 {% else %}
-{% set groups = {'agence': [], 'guichetiers': {} } %}
-{% for s in stocks %}
-    {% if s.user_id is none %}
-        {% set _ = groups['agence'].append(s) %}
-    {% else %}
-        {% if s.user_id not in groups['guichetiers'] %}
-            {% set _ = groups['guichetiers'].__setitem__(s.user_id, []) %}
+{% for a in agencies %}
+<div class="o_card" style="margin-bottom:16px;">
+    <div class="o_card_header"><i class="bi bi-building"></i> {{ a.name }}</div>
+    <div class="o_card_body" style="padding:12px 16px;">
+        {% set agency_stocks = stocks|selectattr('agency_id', 'equalto', a.id)|selectattr('user_id', 'none')|list %}
+        {% if agency_stocks %}
+        <h6 style="font-size:11px;font-weight:600;color:var(--o-text-muted);text-transform:uppercase;margin:0 0 8px;">Stocks agence</h6>
+        <div class="o_stat_cards" style="grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));gap:6px;margin-bottom:12px;">
+        {% for s in agency_stocks %}
+            <div class="o_stat_card" style="cursor:default;padding:10px 14px;">
+                <div class="stat-icon {% if s.current_balance >= 0 %}success{% else %}danger{% endif %}" style="width:32px;height:32px;font-size:12px;">
+                    {% set icon = s.operation_type.name|op_icon %}{% if icon %}<img src="{{ icon }}" alt="{{ s.operation_type.name }}" style="height:22px;width:auto;">{% else %}<i class="bi bi-wallet2"></i>{% endif %}
+                </div>
+                <div class="stat-body">
+                    <p class="stat-label" style="font-size:9px;">{{ s.operation_type.name }}</p>
+                    <h3 class="stat-value" style="font-size:14px;">{% if s.currency == 'FC' %}{{ "%.0f"|format(s.current_balance) }} FC{% else %}${{ "%.2f"|format(s.current_balance) }}{% endif %}</h3>
+                </div>
+                {% if can_edit %}
+                <div style="margin-left:auto;">
+                    <button class="btn-o btn-o-secondary btn-o-sm" onclick="showEdit({{ s.id }}, '{{ s.operation_type.name }}', '{{ a.name }}', '{{ s.currency }}', {{ s.opening_balance }})" style="padding:2px 6px;font-size:10px;">
+                        <i class="bi bi-gear"></i>
+                    </button>
+                </div>
+                {% endif %}
+            </div>
+        {% endfor %}
+        </div>
         {% endif %}
-        {% set _ = groups['guichetiers'][s.user_id].append(s) %}
-    {% endif %}
-{% endfor %}
-
-<div class="o_card">
-    <div class="o_card_header"><i class="bi bi-building"></i> Stocks Agence</div>
-    <div class="o_card_body" style="padding:12px 16px;">
-        <div class="o_stat_cards" style="grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:8px;">
-        {% for s in groups['agence'] %}
-            <div class="o_stat_card" style="cursor:default;padding:12px 16px;">
-                <div class="stat-icon {% if s.current_balance >= 0 %}success{% else %}danger{% endif %}" style="width:36px;height:36px;font-size:14px;">
-                    {% set icon = s.operation_type.name|op_icon %}{% if icon %}<img src="{{ icon }}" alt="{{ s.operation_type.name }}" style="height:28px;width:auto;">{% else %}<i class="bi bi-wallet2"></i>{% endif %}
+        {% for g in guichetiers if g.agency_id == a.id %}
+        {% set g_stocks = stocks|selectattr('user_id', 'equalto', g.id)|list %}
+        {% if g_stocks %}
+        <div style="margin:8px 0 4px;padding:4px 0;border-top:1px solid var(--o-border);">
+            <span style="font-weight:600;font-size:12px;"><i class="bi bi-person"></i> {{ g.full_name }}</span>
+            <span class="o_badge primary" style="font-size:9px;">Guichetier</span>
+        </div>
+        <div class="o_stat_cards" style="grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));gap:6px;">
+        {% for s in g_stocks %}
+            <div class="o_stat_card" style="cursor:default;padding:10px 14px;">
+                <div class="stat-icon {% if s.current_balance >= 0 %}success{% else %}danger{% endif %}" style="width:32px;height:32px;font-size:12px;">
+                    {% set icon = s.operation_type.name|op_icon %}{% if icon %}<img src="{{ icon }}" alt="{{ s.operation_type.name }}" style="height:22px;width:auto;">{% else %}<i class="bi bi-wallet2"></i>{% endif %}
                 </div>
                 <div class="stat-body">
-                    <p class="stat-label" style="font-size:10px;">{{ s.operation_type.name }}</p>
-                    <h3 class="stat-value" style="font-size:16px;">{% if s.currency == 'FC' %}{{ "%.0f"|format(s.current_balance) }} FC{% else %}${{ "%.2f"|format(s.current_balance) }}{% endif %}</h3>
+                    <p class="stat-label" style="font-size:9px;">{{ s.operation_type.name }}</p>
+                    <h3 class="stat-value" style="font-size:14px;">{% if s.currency == 'FC' %}{{ "%.0f"|format(s.current_balance) }} FC{% else %}${{ "%.2f"|format(s.current_balance) }}{% endif %}</h3>
                 </div>
                 {% if can_edit %}
                 <div style="margin-left:auto;">
-                    <button class="btn-o btn-o-secondary btn-o-sm" onclick="showEdit({{ s.id }}, '{{ s.operation_type.name }}', 'Agence', '{{ s.currency }}', {{ s.opening_balance }})">
+                    <button class="btn-o btn-o-secondary btn-o-sm" onclick="showEdit({{ s.id }}, '{{ s.operation_type.name }}', '{{ g.full_name }}', '{{ s.currency }}', {{ s.opening_balance }})" style="padding:2px 6px;font-size:10px;">
                         <i class="bi bi-gear"></i>
                     </button>
                 </div>
@@ -81,37 +101,12 @@
             </div>
         {% endfor %}
         </div>
-    </div>
-</div>
-
-{% for g in guichetiers %}
-{% if groups['guichetiers'].get(g.id) %}
-<div class="o_card">
-    <div class="o_card_header"><i class="bi bi-person"></i> {{ g.full_name }} <span class="o_badge primary" style="font-size:10px;margin-left:8px;">Guichetier</span></div>
-    <div class="o_card_body" style="padding:12px 16px;">
-        <div class="o_stat_cards" style="grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:8px;">
-        {% for s in groups['guichetiers'][g.id] %}
-            <div class="o_stat_card" style="cursor:default;padding:12px 16px;">
-                <div class="stat-icon {% if s.current_balance >= 0 %}success{% else %}danger{% endif %}" style="width:36px;height:36px;font-size:14px;">
-                    {% set icon = s.operation_type.name|op_icon %}{% if icon %}<img src="{{ icon }}" alt="{{ s.operation_type.name }}" style="height:28px;width:auto;">{% else %}<i class="bi bi-wallet2"></i>{% endif %}
-                </div>
-                <div class="stat-body">
-                    <p class="stat-label" style="font-size:10px;">{{ s.operation_type.name }}</p>
-                    <h3 class="stat-value" style="font-size:16px;">{% if s.currency == 'FC' %}{{ "%.0f"|format(s.current_balance) }} FC{% else %}${{ "%.2f"|format(s.current_balance) }}{% endif %}</h3>
-                </div>
-                {% if can_edit %}
-                <div style="margin-left:auto;">
-                    <button class="btn-o btn-o-secondary btn-o-sm" onclick="showEdit({{ s.id }}, '{{ s.operation_type.name }}', '{{ g.full_name }}', '{{ s.currency }}', {{ s.opening_balance }})">
-                        <i class="bi bi-gear"></i>
-                    </button>
-                </div>
-                {% endif %}
-            </div>
+        {% endif %}
         {% endfor %}
-        </div>
     </div>
 </div>
-{% endif %}
+{% else %}
+<div class="o_card"><div class="o_card_body" style="text-align:center;padding:32px;color:var(--o-text-muted);">Aucun stock virtuel</div></div>
 {% endfor %}
 {% endif %}
 
