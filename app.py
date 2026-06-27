@@ -23,7 +23,7 @@ OP_ICONS = {
     'Orange Money': 'orange_money.png',
     'Airtel Money': 'airtel_money.png',
     'M-Pesa': 'mpesa.png',
-    'Pepete Mobile': 'pepete.png',
+    'Pepete Mobile': 'pepele.webp',
     'Equity': 'equity.png',
 }
 
