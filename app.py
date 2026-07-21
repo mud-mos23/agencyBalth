@@ -950,6 +950,144 @@ def cloture_new():
         return redirect(url_for('cloture_list'))
     return render_template('clotures/form.html', form=form, agencies=agencies, prev=prev)
 
+@app.route('/cloture/rapide', methods=['POST'])
+@login_required
+@role_required('super_admin', 'admin_agence')
+def cloture_rapide():
+    agency = current_user.agency if current_user.agency else Agency.query.first()
+    agencies = [agency] if current_user.role != 'super_admin' else Agency.query.filter_by(is_active=True).all()
+
+    for a in agencies:
+        prev = ClotureJournaliere.query.filter_by(agency_id=a.id, status='valide').order_by(ClotureJournaliere.date.desc()).first()
+        last_taux = prev.taux_change if prev else 2200
+        today = datetime.utcnow().date()
+
+        stocks = VirtualStock.query.filter_by(agency_id=a.id, user_id=None).all()
+        virtuel_usd = sum(s.current_balance for s in stocks if s.currency == 'USD')
+        virtuel_cdf = sum(s.current_balance for s in stocks if s.currency == 'FC')
+
+        cash_b = CashBalance.query.filter_by(agency_id=a.id, user_id=None).all()
+        cash_usd = sum(c.current_balance for c in cash_b if c.currency == 'USD')
+        cash_cdf = sum(c.current_balance for c in cash_b if c.currency == 'FC')
+
+        total_actif_usd = virtuel_usd + cash_usd
+        total_actif_cdf = virtuel_cdf + cash_cdf
+
+        solde_initial_usd = prev.cumule_usd if prev else 0
+        solde_initial_cdf = prev.cumule_cdf if prev else 0
+
+        cumule_usd = total_actif_usd - solde_initial_usd
+        cumule_cdf = total_actif_cdf - solde_initial_cdf
+        manque = cumule_cdf + (cumule_usd * last_taux)
+
+        cloture = ClotureJournaliere(
+            agency_id=a.id,
+            date=today,
+            status='brouillon',
+            taux_change=last_taux,
+            solde_initial_usd=solde_initial_usd,
+            solde_initial_cdf=solde_initial_cdf,
+            total_virtuel_usd=virtuel_usd,
+            total_virtuel_cdf=virtuel_cdf,
+            total_cash_usd=cash_usd,
+            total_cash_cdf=cash_cdf,
+            total_actif_usd=total_actif_usd,
+            total_actif_cdf=total_actif_cdf,
+            cumule_usd=cumule_usd,
+            cumule_cdf=cumule_cdf,
+            manque=manque,
+            created_by=current_user.id,
+        )
+        db.session.add(cloture)
+    db.session.commit()
+    flash('Cloture rapide creee avec succes.', 'success')
+    return redirect(url_for('cloture_list'))
+
+@app.route('/cloture/importer-excel', methods=['POST'])
+@login_required
+@role_required('super_admin')
+def cloture_import_excel():
+    try:
+        import openpyxl
+    except ImportError:
+        flash('openpyxl pas installe sur le serveur.', 'danger')
+        return redirect(url_for('cloture_list'))
+    EXCEL_PATH = '/home/daftooco/balthazar.daftoo.com/CLOTURE SHOP AIRTEL - Copie (Enregistr\u00e9 automatiquement).xlsx'
+    if not os.path.exists(EXCEL_PATH):
+        flash('Fichier Excel introuvable.', 'danger')
+        return redirect(url_for('cloture_list'))
+    wb = openpyxl.load_workbook(EXCEL_PATH, data_only=True)
+    agency = Agency.query.first()
+    user = User.query.first()
+    if not agency or not user:
+        flash('Agence ou utilisateur introuvable.', 'danger')
+        return redirect(url_for('cloture_list'))
+    count = 0
+    for sname in wb.sheetnames:
+        ws = wb[sname]
+        name_key = sname.upper()
+        guichetier = User.query.filter_by(username=name_key.lower(), agency_id=agency.id).first()
+        for r in range(4, ws.max_row + 1):
+            date_val = ws.cell(r, 1).value
+            if not isinstance(date_val, datetime):
+                continue
+            dt = date_val.date()
+            def sf(v):
+                if v is None: return 0.0
+                if isinstance(v, (int, float)): return float(v)
+                return 0.0
+            airtel_u = sf(ws.cell(r, 15).value)
+            airtel_c = sf(ws.cell(r, 16).value)
+            vodacom_u = sf(ws.cell(r, 17).value)
+            vodacom_c = sf(ws.cell(r, 18).value)
+            orange_u = sf(ws.cell(r, 19).value)
+            orange_c = sf(ws.cell(r, 20).value)
+            pepele_u = sf(ws.cell(r, 21).value)
+            pepele_c = sf(ws.cell(r, 22).value)
+            cash_u = sf(ws.cell(r, 23).value)
+            cash_c = sf(ws.cell(r, 24).value)
+            virtuel_u = airtel_u + vodacom_u + orange_u + pepele_u
+            virtuel_c = airtel_c + vodacom_c + orange_c + pepele_c
+            solde_u = sf(ws.cell(r, 2).value)
+            solde_c = sf(ws.cell(r, 3).value)
+            ajout_u = sf(ws.cell(r, 4).value)
+            ajout_c = sf(ws.cell(r, 5).value)
+            retrait_u = sf(ws.cell(r, 6).value)
+            retrait_c = sf(ws.cell(r, 7).value)
+            exc = sf(ws.cell(r, 8).value) + sf(ws.cell(r, 9).value) + sf(ws.cell(r, 10).value)
+            creance_u = sf(ws.cell(r, 11).value)
+            creance_c = sf(ws.cell(r, 12).value)
+            dettes_u = sf(ws.cell(r, 25).value)
+            dettes_c = sf(ws.cell(r, 26).value)
+            taux = sf(ws.cell(r, 31).value)
+            total_sin_u = solde_u + ajout_u - retrait_u
+            total_sin_c = solde_c + ajout_c - retrait_c + exc
+            total_actif_u = virtuel_u + cash_u
+            total_actif_c = virtuel_c + cash_c
+            cu = total_actif_u - total_sin_u
+            cc = total_actif_c - total_sin_c
+            manque = cc + (cu * taux)
+            cj = ClotureJournaliere(
+                agency_id=agency.id, guichetier_id=guichetier.id if guichetier else None,
+                date=dt, status='valide', taux_change=taux,
+                solde_initial_usd=solde_u, solde_initial_cdf=solde_c,
+                ajout_initial_usd=ajout_u, ajout_initial_cdf=ajout_c,
+                retrait_initial_usd=retrait_u, retrait_initial_cdf=retrait_c,
+                total_excedent_cdf=exc,
+                total_creance_usd=creance_u, total_creance_cdf=creance_c,
+                total_virtuel_usd=virtuel_u, total_virtuel_cdf=virtuel_c,
+                total_cash_usd=cash_u, total_cash_cdf=cash_c,
+                total_dettes_usd=dettes_u, total_dettes_cdf=dettes_c,
+                total_actif_usd=total_actif_u, total_actif_cdf=total_actif_c,
+                cumule_usd=cu, cumule_cdf=cc, manque=manque,
+                created_by=user.id,
+            )
+            db.session.add(cj)
+            count += 1
+    db.session.commit()
+    flash(f'{count} clotures importees depuis Excel.', 'success')
+    return redirect(url_for('cloture_list'))
+
 @app.route('/cloture/<int:id>')
 @login_required
 @role_required('super_admin', 'admin_agence', 'comptable', 'secretaire')
@@ -1107,6 +1245,81 @@ def init_db():
                     )
                     db.session.add(vs)
             db.session.commit()
+
+    if not ClotureJournaliere.query.first():
+        try:
+            import openpyxl
+            from datetime import date as dt_date
+            EXCEL_PATH = '/home/daftooco/balthazar.daftoo.com/CLOTURE SHOP AIRTEL - Copie (Enregistr\u00e9 automatiquement).xlsx'
+            if os.path.exists(EXCEL_PATH):
+                wb = openpyxl.load_workbook(EXCEL_PATH, data_only=True)
+                agency = Agency.query.first()
+                user = User.query.first()
+                if agency and user:
+                    for sname in wb.sheetnames:
+                        ws = wb[sname]
+                        name_key = sname.upper()
+                        guichetier = User.query.filter_by(username=name_key.lower(), agency_id=agency.id).first()
+                        for r in range(4, ws.max_row + 1):
+                            date_val = ws.cell(r, 1).value
+                            if not isinstance(date_val, datetime):
+                                continue
+                            dt = date_val.date() if isinstance(date_val, datetime) else date_val
+                            def sf(v):
+                                if v is None: return 0.0
+                                if isinstance(v, (int, float)): return float(v)
+                                return 0.0
+                            airtel_u = sf(ws.cell(r, 15).value)
+                            airtel_c = sf(ws.cell(r, 16).value)
+                            vodacom_u = sf(ws.cell(r, 17).value)
+                            vodacom_c = sf(ws.cell(r, 18).value)
+                            orange_u = sf(ws.cell(r, 19).value)
+                            orange_c = sf(ws.cell(r, 20).value)
+                            pepele_u = sf(ws.cell(r, 21).value)
+                            pepele_c = sf(ws.cell(r, 22).value)
+                            cash_u = sf(ws.cell(r, 23).value)
+                            cash_c = sf(ws.cell(r, 24).value)
+                            virtuel_u = airtel_u + vodacom_u + orange_u + pepele_u
+                            virtuel_c = airtel_c + vodacom_c + orange_c + pepele_c
+                            solde_u = sf(ws.cell(r, 2).value)
+                            solde_c = sf(ws.cell(r, 3).value)
+                            ajout_u = sf(ws.cell(r, 4).value)
+                            ajout_c = sf(ws.cell(r, 5).value)
+                            retrait_u = sf(ws.cell(r, 6).value)
+                            retrait_c = sf(ws.cell(r, 7).value)
+                            exc = sf(ws.cell(r, 8).value) + sf(ws.cell(r, 9).value) + sf(ws.cell(r, 10).value)
+                            creance_u = sf(ws.cell(r, 11).value)
+                            creance_c = sf(ws.cell(r, 12).value)
+                            dettes_u = sf(ws.cell(r, 25).value)
+                            dettes_c = sf(ws.cell(r, 26).value)
+                            taux = sf(ws.cell(r, 31).value)
+                            total_sin_u = solde_u + ajout_u - retrait_u
+                            total_sin_c = solde_c + ajout_c - retrait_c + exc
+                            total_actif_u = virtuel_u + cash_u
+                            total_actif_c = virtuel_c + cash_c
+                            cu = total_actif_u - total_sin_u
+                            cc = total_actif_c - total_sin_c
+                            manque = cc + (cu * taux)
+                            cj = ClotureJournaliere(
+                                agency_id=agency.id, guichetier_id=guichetier.id if guichetier else None,
+                                date=dt, status='valide', taux_change=taux,
+                                solde_initial_usd=solde_u, solde_initial_cdf=solde_c,
+                                ajout_initial_usd=ajout_u, ajout_initial_cdf=ajout_c,
+                                retrait_initial_usd=retrait_u, retrait_initial_cdf=retrait_c,
+                                total_excedent_cdf=exc,
+                                total_creance_usd=creance_u, total_creance_cdf=creance_c,
+                                total_virtuel_usd=virtuel_u, total_virtuel_cdf=virtuel_c,
+                                total_cash_usd=cash_u, total_cash_cdf=cash_c,
+                                total_dettes_usd=dettes_u, total_dettes_cdf=dettes_c,
+                                total_actif_usd=total_actif_u, total_actif_cdf=total_actif_c,
+                                cumule_usd=cu, cumule_cdf=cc, manque=manque,
+                                created_by=user.id,
+                            )
+                            db.session.add(cj)
+                        print(f'Auto-imported {sname}')
+                    db.session.commit()
+        except Exception as e:
+            print(f'Excel import skipped: {e}')
 
 with app.app_context():
     init_db()

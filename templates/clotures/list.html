@@ -3,30 +3,41 @@
 {% block control_panel %}
 <div class="o_control_panel">
     <div class="breadcrumb"><a href="{{ url_for('dashboard') }}">Accueil</a> / <span>Clôtures</span></div>
-    <div style="display:flex;align-items:center;justify-content:space-between;">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
         <h1 class="cp-title" style="margin:0;">Clôtures Journalières</h1>
-        {% if current_user.role in ('super_admin', 'admin_agence') %}
-        <a href="{{ url_for('cloture_new') }}" class="btn-o btn-o-primary"><i class="bi bi-plus-lg"></i> Nouvelle clôture</a>
-        {% endif %}
+        <div style="display:flex;gap:8px;">
+            {% if current_user.role in ('super_admin', 'admin_agence') %}
+            <form method="POST" action="{{ url_for('cloture_rapide') }}" style="display:inline;">
+                <button type="submit" class="btn-o btn-o-success"><i class="bi bi-lightning"></i> Clôture rapide</button>
+            </form>
+            <a href="{{ url_for('cloture_new') }}" class="btn-o btn-o-primary"><i class="bi bi-plus-lg"></i> Nouvelle</a>
+            {% endif %}
+        </div>
     </div>
 </div>
 {% endblock %}
 {% block content %}
 <div class="o_card">
-    <div class="o_card_body" style="padding:0;">
-        <table class="o_list_table">
+    <div class="o_card_body" style="padding:0;overflow-x:auto;">
+        <table class="o_list_table" style="font-size:12px;">
             <thead>
                 <tr>
                     <th>Date</th>
                     <th>Agence</th>
                     <th>Guichetier</th>
+                    <th>S.Initial USD</th>
+                    <th>S.Initial CDF</th>
+                    <th>Virtuel USD</th>
+                    <th>Virtuel CDF</th>
+                    <th>Cash USD</th>
+                    <th>Cash CDF</th>
                     <th>Total Actif USD</th>
                     <th>Total Actif CDF</th>
                     <th>Cumul USD</th>
                     <th>Cumul CDF</th>
+                    <th>Taux</th>
                     <th>Manque</th>
                     <th>Statut</th>
-                    <th>Créé par</th>
                     <th></th>
                 </tr>
             </thead>
@@ -36,19 +47,25 @@
                     <td>{{ c.date.strftime('%d/%m/%Y') }}</td>
                     <td>{{ c.agency.name }}</td>
                     <td>{% if c.guichetier %}{{ c.guichetier.full_name }}{% else %}-{% endif %}</td>
-                    <td>${{ "%.2f"|format(c.total_actif_usd) }}</td>
-                    <td>{{ "%.0f"|format(c.total_actif_cdf) }} FC</td>
-                    <td>${{ "%.2f"|format(c.cumule_usd) }}</td>
-                    <td>{{ "%.0f"|format(c.cumule_cdf) }} FC</td>
-                    <td>{{ "%.0f"|format(c.manque) }} FC</td>
-                    <td>{% if c.status == 'valide' %}<span class="o_badge success">Validée</span>{% else %}<span class="o_badge warning">Brouillon</span>{% endif %}</td>
-                    <td>{{ c.creator.full_name }}</td>
+                    <td>${{ "%.0f"|format(c.solde_initial_usd) }}</td>
+                    <td>{{ "%.0f"|format(c.solde_initial_cdf) }}</td>
+                    <td>${{ "%.0f"|format(c.total_virtuel_usd) }}</td>
+                    <td>{{ "%.0f"|format(c.total_virtuel_cdf) }}</td>
+                    <td>${{ "%.0f"|format(c.total_cash_usd) }}</td>
+                    <td>{{ "%.0f"|format(c.total_cash_cdf) }}</td>
+                    <td><strong>${{ "%.0f"|format(c.total_actif_usd) }}</strong></td>
+                    <td><strong>{{ "%.0f"|format(c.total_actif_cdf) }}</strong></td>
+                    <td>{% if c.cumule_usd >= 0 %}+{% endif %}${{ "%.0f"|format(c.cumule_usd) }}</td>
+                    <td>{% if c.cumule_cdf >= 0 %}+{% endif %}{{ "%.0f"|format(c.cumule_cdf) }}</td>
+                    <td>{{ "%.0f"|format(c.taux_change) }}</td>
+                    <td style="color:{% if c.manque >= -500 and c.manque <= 500 %}var(--o-success){% else %}var(--o-danger){% endif %};">{{ "%.0f"|format(c.manque) }}</td>
+                    <td>{% if c.status == 'valide' %}<span class="o_badge success">Ok</span>{% else %}<span class="o_badge warning">Brouillon</span>{% endif %}</td>
                     <td>
                         <a href="{{ url_for('cloture_detail', id=c.id) }}" class="btn-o btn-o-secondary btn-o-sm"><i class="bi bi-eye"></i></a>
                     </td>
                 </tr>
                 {% else %}
-                <tr><td colspan="11" style="text-align:center;padding:32px;color:var(--o-text-muted);">Aucune clôture</td></tr>
+                <tr><td colspan="17" style="text-align:center;padding:32px;color:var(--o-text-muted);">Aucune clôture. Cliquez sur "Clôture rapide" pour générer la première.</td></tr>
                 {% endfor %}
             </tbody>
         </table>
