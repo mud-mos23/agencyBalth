@@ -179,8 +179,10 @@ class ClotureJournaliere(db.Model):
     notes = db.Column(db.Text, nullable=True)
     created_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    guichetier_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
     agency = db.relationship('Agency')
-    creator = db.relationship('User')
+    creator = db.relationship('User', foreign_keys=[created_by])
+    guichetier = db.relationship('User', foreign_keys=[guichetier_id])
 
 class Excedent(db.Model):
     __tablename__ = 'excedents'

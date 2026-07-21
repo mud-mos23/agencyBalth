@@ -19,6 +19,7 @@
                 <tr>
                     <th>Date</th>
                     <th>Agence</th>
+                    <th>Guichetier</th>
                     <th>Total Actif USD</th>
                     <th>Total Actif CDF</th>
                     <th>Cumul USD</th>
@@ -34,6 +35,7 @@
                 <tr>
                     <td>{{ c.date.strftime('%d/%m/%Y') }}</td>
                     <td>{{ c.agency.name }}</td>
+                    <td>{% if c.guichetier %}{{ c.guichetier.full_name }}{% else %}-{% endif %}</td>
                     <td>${{ "%.2f"|format(c.total_actif_usd) }}</td>
                     <td>{{ "%.0f"|format(c.total_actif_cdf) }} FC</td>
                     <td>${{ "%.2f"|format(c.cumule_usd) }}</td>
@@ -46,7 +48,7 @@
                     </td>
                 </tr>
                 {% else %}
-                <tr><td colspan="10" style="text-align:center;padding:32px;color:var(--o-text-muted);">Aucune clôture</td></tr>
+                <tr><td colspan="11" style="text-align:center;padding:32px;color:var(--o-text-muted);">Aucune clôture</td></tr>
                 {% endfor %}
             </tbody>
         </table>

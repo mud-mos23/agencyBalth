@@ -99,6 +99,7 @@
     <div class="o_card_header"><i class="bi bi-info-circle"></i> Métadonnées</div>
     <div class="o_card_body" style="font-size:13px;">
         <div class="detail-row"><span class="label">Créé par</span><span class="value">{{ cloture.creator.full_name }}</span></div>
+        {% if cloture.guichetier %}<div class="detail-row"><span class="label">Guichetier</span><span class="value">{{ cloture.guichetier.full_name }}</span></div>{% endif %}
         <div class="detail-row"><span class="label">Date de création</span><span class="value">{{ cloture.created_at.strftime('%d/%m/%Y %H:%M') }}</span></div>
         <div class="detail-row"><span class="label">Statut</span><span class="value">{% if cloture.status == 'valide' %}<span class="o_badge success">Validée</span>{% else %}<span class="o_badge warning">Brouillon</span>{% endif %}</span></div>
         {% if cloture.notes %}<div class="detail-row"><span class="label">Notes</span><span class="value">{{ cloture.notes }}</span></div>{% endif %}
