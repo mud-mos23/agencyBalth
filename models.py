@@ -148,3 +148,62 @@ class CashBalance(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     agency = db.relationship('Agency')
     user = db.relationship('User')
+
+class ClotureJournaliere(db.Model):
+    __tablename__ = 'clotures_journalieres'
+    id = db.Column(db.Integer, primary_key=True)
+    agency_id = db.Column(db.Integer, db.ForeignKey('agencies.id'), nullable=False)
+    date = db.Column(db.Date, nullable=False)
+    status = db.Column(db.String(20), default='brouillon')
+    taux_change = db.Column(db.Float, default=0.0)
+    solde_initial_usd = db.Column(db.Float, default=0.0)
+    solde_initial_cdf = db.Column(db.Float, default=0.0)
+    ajout_initial_usd = db.Column(db.Float, default=0.0)
+    ajout_initial_cdf = db.Column(db.Float, default=0.0)
+    retrait_initial_usd = db.Column(db.Float, default=0.0)
+    retrait_initial_cdf = db.Column(db.Float, default=0.0)
+    total_excedent_cdf = db.Column(db.Float, default=0.0)
+    total_creance_usd = db.Column(db.Float, default=0.0)
+    total_creance_cdf = db.Column(db.Float, default=0.0)
+    total_virtuel_usd = db.Column(db.Float, default=0.0)
+    total_virtuel_cdf = db.Column(db.Float, default=0.0)
+    total_cash_usd = db.Column(db.Float, default=0.0)
+    total_cash_cdf = db.Column(db.Float, default=0.0)
+    total_dettes_usd = db.Column(db.Float, default=0.0)
+    total_dettes_cdf = db.Column(db.Float, default=0.0)
+    total_actif_usd = db.Column(db.Float, default=0.0)
+    total_actif_cdf = db.Column(db.Float, default=0.0)
+    cumule_usd = db.Column(db.Float, default=0.0)
+    cumule_cdf = db.Column(db.Float, default=0.0)
+    manque = db.Column(db.Float, default=0.0)
+    notes = db.Column(db.Text, nullable=True)
+    created_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    agency = db.relationship('Agency')
+    creator = db.relationship('User')
+
+class Excedent(db.Model):
+    __tablename__ = 'excedents'
+    id = db.Column(db.Integer, primary_key=True)
+    cloture_id = db.Column(db.Integer, db.ForeignKey('clotures_journalieres.id'), nullable=False)
+    categorie = db.Column(db.String(50), nullable=False)
+    montant_cdf = db.Column(db.Float, default=0.0)
+    cloture = db.relationship('ClotureJournaliere', backref='excedents')
+
+class CreancePartenaire(db.Model):
+    __tablename__ = 'creances_partenaires'
+    id = db.Column(db.Integer, primary_key=True)
+    cloture_id = db.Column(db.Integer, db.ForeignKey('clotures_journalieres.id'), nullable=False)
+    partenaire = db.Column(db.String(120), nullable=False)
+    montant_usd = db.Column(db.Float, default=0.0)
+    montant_cdf = db.Column(db.Float, default=0.0)
+    cloture = db.relationship('ClotureJournaliere', backref='creances')
+
+class Dette(db.Model):
+    __tablename__ = 'dettes'
+    id = db.Column(db.Integer, primary_key=True)
+    cloture_id = db.Column(db.Integer, db.ForeignKey('clotures_journalieres.id'), nullable=False)
+    creancier = db.Column(db.String(120), nullable=False)
+    montant_usd = db.Column(db.Float, default=0.0)
+    montant_cdf = db.Column(db.Float, default=0.0)
+    cloture = db.relationship('ClotureJournaliere', backref='dettes')

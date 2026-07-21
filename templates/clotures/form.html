@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% block title %}Nouvelle Clôture{% endblock %}
+{% block control_panel %}
+<div class="o_control_panel">
+    <div class="breadcrumb"><a href="{{ url_for('dashboard') }}">Accueil</a> / <a href="{{ url_for('cloture_list') }}">Clôtures</a> / <span>Nouvelle</span></div>
+    <h1 class="cp-title">Nouvelle Clôture Journalière</h1>
+</div>
+{% endblock %}
+{% block content %}
+<style>
+.cloture-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+.cloture-grid .full { grid-column:1/-1; }
+@media(max-width:768px){.cloture-grid{grid-template-columns:1fr;}}
+</style>
+<form method="POST" class="o_card" style="max-width:900px;">
+    {{ form.hidden_tag() }}
+    <div class="o_card_header">Informations générales</div>
+    <div class="o_card_body cloture-grid">
+        <div class="o_field full">
+            <label>Date</label>
+            {{ form.date(class="form-control", type="date") }}
+            {% for e in form.date.errors %}<small class="o_text_danger">{{ e }}</small>{% endfor %}
+        </div>
+        <div class="o_field full">
+            <label>Taux de change (1 USD en CDF)</label>
+            {{ form.taux_change(class="form-control", step="1") }}
+            {% for e in form.taux_change.errors %}<small class="o_text_danger">{{ e }}</small>{% endfor %}
+        </div>
+    </div>
+
+    <div class="o_card_header">Solde initial</div>
+    <div class="o_card_body cloture-grid">
+        <div class="o_field">
+            <label>Solde initial USD</label>
+            {{ form.solde_initial_usd(class="form-control", step="0.01", placeholder="0") }}
+        </div>
+        <div class="o_field">
+            <label>Solde initial CDF</label>
+            {{ form.solde_initial_cdf(class="form-control", step="1", placeholder="0") }}
+        </div>
+        <div class="o_field">
+            <label>Ajout sur initial USD</label>
+            {{ form.ajout_initial_usd(class="form-control", step="0.01", placeholder="0") }}
+        </div>
+        <div class="o_field">
+            <label>Ajout sur initial CDF</label>
+            {{ form.ajout_initial_cdf(class="form-control", step="1", placeholder="0") }}
+        </div>
+        <div class="o_field">
+            <label>Retrait sur initial USD</label>
+            {{ form.retrait_initial_usd(class="form-control", step="0.01", placeholder="0") }}
+        </div>
+        <div class="o_field">
+            <label>Retrait sur initial CDF</label>
+            {{ form.retrait_initial_cdf(class="form-control", step="1", placeholder="0") }}
+        </div>
+    </div>
+
+    <div class="o_card_header">Excédents (CDF)</div>
+    <div class="o_card_body cloture-grid">
+        <div class="o_field">
+            <label>SWAPS</label>
+            {{ form.excedent_swaps(class="form-control", step="1", placeholder="0") }}
+        </div>
+        <div class="o_field">
+            <label>Bureau de change</label>
+            {{ form.excedent_bureau(class="form-control", step="1", placeholder="0") }}
+        </div>
+        <div class="o_field">
+            <label>Autres</label>
+            {{ form.excedent_autres(class="form-control", step="1", placeholder="0") }}
+        </div>
+    </div>
+
+    <div class="o_card_header">Résumé automatique (pré-rempli depuis les soldes actuels)</div>
+    <div class="o_card_body" style="font-size:13px;color:var(--o-text-muted);">
+        {% for a in agencies %}
+        <div style="margin-bottom:8px;"><strong>{{ a.name }}</strong></div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;">
+            <div>Virtuel USD: <strong id="virtuel_usd_{{ a.id }}">—</strong></div>
+            <div>Virtuel CDF: <strong id="virtuel_cdf_{{ a.id }}">—</strong></div>
+            <div>Cash USD: <strong id="cash_usd_{{ a.id }}">—</strong></div>
+            <div>Cash CDF: <strong id="cash_cdf_{{ a.id }}">—</strong></div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="o_card_header">Notes</div>
+    <div class="o_card_body">
+        <div class="o_field">
+            {{ form.notes(class="form-control", rows="3", placeholder="Notes éventuelles...") }}
+        </div>
+    </div>
+
+    <div style="padding:16px 20px;display:flex;gap:8px;justify-content:flex-end;">
+        <a href="{{ url_for('cloture_list') }}" class="btn-o btn-o-secondary">Annuler</a>
+        <button type="submit" class="btn-o btn-o-primary"><i class="bi bi-check-lg"></i> Créer la clôture</button>
+    </div>
+</form>
+{% endblock %}
+{% block scripts %}
+<script>
+async function loadSoldes() {
+    const r = await fetch('/api/soldes-actuels');
+    const data = await r.json();
+    for (const [aid, s] of Object.entries(data)) {
+        document.getElementById('virtuel_usd_' + aid).textContent = '$' + s.virtuel_usd.toFixed(2);
+        document.getElementById('virtuel_cdf_' + aid).textContent = s.virtuel_cdf.toFixed(0) + ' FC';
+        document.getElementById('cash_usd_' + aid).textContent = '$' + s.cash_usd.toFixed(2);
+        document.getElementById('cash_cdf_' + aid).textContent = s.cash_cdf.toFixed(0) + ' FC';
+    }
+}
+loadSoldes();
+</script>
+{% endblock %}

@@ -7,8 +7,8 @@ from flask_login import LoginManager, login_user, logout_user, login_required, c
 from werkzeug.utils import secure_filename
 
 from config import Config
-from models import db, User, Agency, OperationType, CommissionConfig, Operation, Expense, AccountingLog, VirtualStock, CashBalance
-from forms import (LoginForm, AgencyForm, UserForm, OperationForm, CommissionForm, ExpenseForm, FilterForm)
+from models import db, User, Agency, OperationType, CommissionConfig, Operation, Expense, AccountingLog, VirtualStock, CashBalance, ClotureJournaliere, Excedent, CreancePartenaire, Dette
+from forms import (LoginForm, AgencyForm, UserForm, OperationForm, CommissionForm, ExpenseForm, FilterForm, ClotureForm)
 
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -522,6 +522,22 @@ def api_commission():
     commission = calc_commission(op_type_id, direction, amount, currency)
     return jsonify(commission)
 
+@app.route('/api/soldes-actuels')
+@login_required
+def api_soldes_actuels():
+    agencies = Agency.query.filter_by(is_active=True).all() if current_user.role == 'super_admin' else [current_user.agency]
+    data = {}
+    for a in agencies:
+        stocks = VirtualStock.query.filter_by(agency_id=a.id, user_id=None).all()
+        cash = CashBalance.query.filter_by(agency_id=a.id, user_id=None).all()
+        data[str(a.id)] = {
+            'virtuel_usd': sum(s.current_balance for s in stocks if s.currency == 'USD'),
+            'virtuel_cdf': sum(s.current_balance for s in stocks if s.currency == 'FC'),
+            'cash_usd': sum(c.current_balance for c in cash if c.currency == 'USD'),
+            'cash_cdf': sum(c.current_balance for c in cash if c.currency == 'FC'),
+        }
+    return jsonify(data)
+
 @app.route('/commissions')
 @login_required
 @role_required('super_admin', 'admin_agence', 'secretaire')
@@ -845,6 +861,130 @@ def reports():
         total_commission=total_commission,
         by_type=by_type, by_agency=by_agency,
         expense_usd=expense_usd, expense_fc=expense_fc, form=form)
+
+@app.route('/clotures')
+@login_required
+@role_required('super_admin', 'admin_agence', 'comptable', 'secretaire')
+def cloture_list():
+    agency_filter = {} if current_user.role == 'super_admin' else {'agency_id': current_user.agency_id}
+    clotures = ClotureJournaliere.query.filter_by(**agency_filter).order_by(ClotureJournaliere.date.desc()).all()
+    return render_template('clotures/list.html', clotures=clotures)
+
+@app.route('/cloture/nouvelle', methods=['GET', 'POST'])
+@login_required
+@role_required('super_admin', 'admin_agence')
+def cloture_new():
+    form = ClotureForm()
+    agency = current_user.agency if current_user.agency else Agency.query.first()
+    agencies = [agency] if current_user.role != 'super_admin' else Agency.query.filter_by(is_active=True).all()
+    prev = ClotureJournaliere.query.filter_by(agency_id=agency.id, status='valide').order_by(ClotureJournaliere.date.desc()).first()
+
+    if form.validate_on_submit():
+        for a in agencies:
+            excedents = []
+            for cat, key in [('SWAPS', 'excedent_swaps'), ('Bureau de change', 'excedent_bureau'), ('Autres', 'excedent_autres')]:
+                val = getattr(form, key).data or 0
+                if val:
+                    excedents.append(Excedent(categorie=cat, montant_cdf=val))
+            total_exc = sum(e.montant_cdf for e in excedents)
+
+            stocks = VirtualStock.query.filter_by(agency_id=a.id, user_id=None).all()
+            virtuel_usd = sum(s.current_balance for s in stocks if s.currency == 'USD')
+            virtuel_cdf = sum(s.current_balance for s in stocks if s.currency == 'FC')
+
+            cash_balances = CashBalance.query.filter_by(agency_id=a.id, user_id=None).all()
+            cash_usd = sum(c.current_balance for c in cash_balances if c.currency == 'USD')
+            cash_cdf = sum(c.current_balance for c in cash_balances if c.currency == 'FC')
+
+            total_actif_usd = virtuel_usd + cash_usd
+            total_actif_cdf = virtuel_cdf + cash_cdf
+
+            solde_initial_usd = form.solde_initial_usd.data or 0
+            solde_initial_cdf = form.solde_initial_cdf.data or 0
+            ajout_usd = form.ajout_initial_usd.data or 0
+            ajout_cdf = form.ajout_initial_cdf.data or 0
+            retrait_usd = form.retrait_initial_usd.data or 0
+            retrait_cdf = form.retrait_initial_cdf.data or 0
+
+            total_sin_usd = solde_initial_usd + ajout_usd - retrait_usd
+            total_sin_cdf = solde_initial_cdf + ajout_cdf - retrait_cdf + total_exc
+
+            cumule_usd = total_actif_usd - total_sin_usd
+            cumule_cdf = total_actif_cdf - total_sin_cdf
+            taux = form.taux_change.data or 0
+
+            manque = cumule_cdf + (cumule_usd * taux)
+
+            cloture = ClotureJournaliere(
+                agency_id=a.id,
+                date=form.date.data,
+                taux_change=taux,
+                solde_initial_usd=solde_initial_usd,
+                solde_initial_cdf=solde_initial_cdf,
+                ajout_initial_usd=ajout_usd,
+                ajout_initial_cdf=ajout_cdf,
+                retrait_initial_usd=retrait_usd,
+                retrait_initial_cdf=retrait_cdf,
+                total_excedent_cdf=total_exc,
+                total_virtuel_usd=virtuel_usd,
+                total_virtuel_cdf=virtuel_cdf,
+                total_cash_usd=cash_usd,
+                total_cash_cdf=cash_cdf,
+                total_dettes_usd=0,
+                total_dettes_cdf=0,
+                total_actif_usd=total_actif_usd,
+                total_actif_cdf=total_actif_cdf,
+                cumule_usd=cumule_usd,
+                cumule_cdf=cumule_cdf,
+                manque=manque,
+                notes=form.notes.data,
+                created_by=current_user.id,
+            )
+            db.session.add(cloture)
+            db.session.flush()
+            for e in excedents:
+                e.cloture_id = cloture.id
+                db.session.add(e)
+        db.session.commit()
+        flash('Cloture creee avec succes.', 'success')
+        return redirect(url_for('cloture_list'))
+    return render_template('clotures/form.html', form=form, agencies=agencies, prev=prev)
+
+@app.route('/cloture/<int:id>')
+@login_required
+@role_required('super_admin', 'admin_agence', 'comptable', 'secretaire')
+def cloture_detail(id):
+    cloture = ClotureJournaliere.query.get_or_404(id)
+    if current_user.role != 'super_admin' and cloture.agency_id != current_user.agency_id:
+        abort(403)
+    return render_template('clotures/details.html', cloture=cloture)
+
+@app.route('/cloture/<int:id>/valider', methods=['POST'])
+@login_required
+@role_required('super_admin', 'admin_agence')
+def cloture_valider(id):
+    cloture = ClotureJournaliere.query.get_or_404(id)
+    if current_user.role != 'super_admin' and cloture.agency_id != current_user.agency_id:
+        abort(403)
+    cloture.status = 'valide'
+    db.session.commit()
+    flash('Cloture validee.', 'success')
+    return redirect(url_for('cloture_detail', id=id))
+
+@app.route('/cloture/<int:id>/supprimer', methods=['POST'])
+@login_required
+@role_required('super_admin', 'admin_agence')
+def cloture_delete(id):
+    cloture = ClotureJournaliere.query.get_or_404(id)
+    if current_user.role != 'super_admin' and cloture.agency_id != current_user.agency_id:
+        abort(403)
+    Excedent.query.filter_by(cloture_id=id).delete()
+    CreancePartenaire.query.filter_by(cloture_id=id).delete()
+    Dette.query.filter_by(cloture_id=id).delete()
+    db.session.delete(cloture)
+    db.session.commit()
+    flash('Cloture supprimee.', 'success')
+    return redirect(url_for('cloture_list'))
 
 def init_db():
     db.create_all()

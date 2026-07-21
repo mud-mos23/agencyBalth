@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% block title %}Clôture du {{ cloture.date.strftime('%d/%m/%Y') }}{% endblock %}
+{% block control_panel %}
+<div class="o_control_panel">
+    <div class="breadcrumb"><a href="{{ url_for('dashboard') }}">Accueil</a> / <a href="{{ url_for('cloture_list') }}">Clôtures</a> / <span>{{ cloture.date.strftime('%d/%m/%Y') }}</span></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;">
+        <h1 class="cp-title" style="margin:0;">Clôture {{ cloture.agency.name }} - {{ cloture.date.strftime('%d/%m/%Y') }}</h1>
+        <div style="display:flex;gap:8px;">
+            {% if cloture.status == 'brouillon' and current_user.role in ('super_admin', 'admin_agence') %}
+            <form method="POST" action="{{ url_for('cloture_valider', id=cloture.id) }}" style="display:inline;">
+                <button type="submit" class="btn-o btn-o-success"><i class="bi bi-check-lg"></i> Valider</button>
+            </form>
+            <form method="POST" action="{{ url_for('cloture_delete', id=cloture.id) }}" style="display:inline;" onsubmit="return confirm('Supprimer cette clôture ?')">
+                <button type="submit" class="btn-o btn-o-danger"><i class="bi bi-trash"></i></button>
+            </form>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block content %}
+<style>
+.detail-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+.detail-grid .full { grid-column:1/-1; }
+.detail-row { display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid var(--o-border); font-size:13px; }
+.detail-row .label { color:var(--o-text-muted); }
+.detail-row .value { font-weight:600; }
+.total-row { font-size:15px; font-weight:700; background:var(--o-bg-muted); margin:0 -16px; padding:8px 16px; }
+.manque-ok { color:var(--o-success); }
+.manque-ko { color:var(--o-danger); }
+@media(max-width:768px){.detail-grid{grid-template-columns:1fr;}}
+</style>
+
+<div class="detail-grid">
+    <div class="o_card">
+        <div class="o_card_header"><i class="bi bi-cash-stack"></i> Solde Initial & Ajustements</div>
+        <div class="o_card_body">
+            <div class="detail-row"><span class="label">Solde initial USD</span><span class="value">${{ "%.2f"|format(cloture.solde_initial_usd) }}</span></div>
+            <div class="detail-row"><span class="label">Solde initial CDF</span><span class="value">{{ "%.0f"|format(cloture.solde_initial_cdf) }} FC</span></div>
+            <div class="detail-row"><span class="label">Ajout USD</span><span class="value">+${{ "%.2f"|format(cloture.ajout_initial_usd) }}</span></div>
+            <div class="detail-row"><span class="label">Ajout CDF</span><span class="value">+{{ "%.0f"|format(cloture.ajout_initial_cdf) }} FC</span></div>
+            <div class="detail-row"><span class="label">Retrait USD</span><span class="value">-${{ "%.2f"|format(cloture.retrait_initial_usd) }}</span></div>
+            <div class="detail-row"><span class="label">Retrait CDF</span><span class="value">-{{ "%.0f"|format(cloture.retrait_initial_cdf) }} FC</span></div>
+            <div class="detail-row"><span class="label">Excédents (CDF)</span><span class="value">{{ "%.0f"|format(cloture.total_excedent_cdf) }} FC</span></div>
+        </div>
+    </div>
+
+    <div class="o_card">
+        <div class="o_card_header"><i class="bi bi-wallet2"></i> Actifs</div>
+        <div class="o_card_body">
+            <div class="detail-row"><span class="label">Virtuel USD</span><span class="value">${{ "%.2f"|format(cloture.total_virtuel_usd) }}</span></div>
+            <div class="detail-row"><span class="label">Virtuel CDF</span><span class="value">{{ "%.0f"|format(cloture.total_virtuel_cdf) }} FC</span></div>
+            <div class="detail-row"><span class="label">Cash USD</span><span class="value">${{ "%.2f"|format(cloture.total_cash_usd) }}</span></div>
+            <div class="detail-row"><span class="label">Cash CDF</span><span class="value">{{ "%.0f"|format(cloture.total_cash_cdf) }} FC</span></div>
+            <div class="detail-row"><span class="label">Dettes USD</span><span class="value">${{ "%.2f"|format(cloture.total_dettes_usd) }}</span></div>
+            <div class="detail-row"><span class="label">Dettes CDF</span><span class="value">{{ "%.0f"|format(cloture.total_dettes_cdf) }} FC</span></div>
+        </div>
+    </div>
+</div>
+
+<div class="o_card" style="margin-top:16px;">
+    <div class="o_card_header"><i class="bi bi-calculator"></i> Vérification d'équilibre</div>
+    <div class="o_card_body">
+        <div class="detail-grid">
+            <div>
+                <div class="detail-row"><span class="label">Taux de change</span><span class="value">{{ "%.0f"|format(cloture.taux_change) }} FC/USD</span></div>
+                <div class="detail-row"><span class="label">Total S.Init & Ajust. USD</span><span class="value">${{ "%.2f"|format(cloture.solde_initial_usd + cloture.ajout_initial_usd - cloture.retrait_initial_usd) }}</span></div>
+                <div class="detail-row"><span class="label">Total S.Init & Ajust. CDF</span><span class="value">{{ "%.0f"|format(cloture.solde_initial_cdf + cloture.ajout_initial_cdf - cloture.retrait_initial_cdf + cloture.total_excedent_cdf) }} FC</span></div>
+                <div class="detail-row"><span class="label">Total Actif USD</span><span class="value">${{ "%.2f"|format(cloture.total_actif_usd) }}</span></div>
+                <div class="detail-row"><span class="label">Total Actif CDF</span><span class="value">{{ "%.0f"|format(cloture.total_actif_cdf) }} FC</span></div>
+            </div>
+            <div>
+                <div class="detail-row total-row"><span class="label">Cumul USD</span><span class="value {% if cloture.cumule_usd >= 0 %}o_text_success{% else %}o_text_danger{% endif %}">${{ "%.2f"|format(cloture.cumule_usd) }}</span></div>
+                <div class="detail-row total-row"><span class="label">Cumul CDF</span><span class="value {% if cloture.cumule_cdf >= 0 %}o_text_success{% else %}o_text_danger{% endif %}">{{ "%.0f"|format(cloture.cumule_cdf) }} FC</span></div>
+                <div class="detail-row total-row"><span class="label">Résultat (Cumul USD × Taux)</span><span class="value">${{ "%.2f"|format(cloture.cumule_usd) }} × {{ "%.0f"|format(cloture.taux_change) }} = {{ "%.0f"|format(cloture.cumule_usd * cloture.taux_change) }} FC</span></div>
+                <div class="detail-row total-row"><span class="label">Manque</span><span class="value {% if cloture.manque >= -1 and cloture.manque <= 1 %}manque-ok{% else %}manque-ko{% endif %}">{{ "%.0f"|format(cloture.manque) }} FC</span></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if cloture.excedents %}
+<div class="o_card" style="margin-top:16px;">
+    <div class="o_card_header"><i class="bi bi-graph-up-arrow"></i> Excédents</div>
+    <div class="o_card_body" style="padding:0;">
+        <table class="o_list_table">
+            <thead><tr><th>Catégorie</th><th>Montant CDF</th></tr></thead>
+            <tbody>
+            {% for e in cloture.excedents %}
+            <tr><td>{{ e.categorie }}</td><td>{{ "%.0f"|format(e.montant_cdf) }} FC</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+<div class="o_card" style="margin-top:16px;">
+    <div class="o_card_header"><i class="bi bi-info-circle"></i> Métadonnées</div>
+    <div class="o_card_body" style="font-size:13px;">
+        <div class="detail-row"><span class="label">Créé par</span><span class="value">{{ cloture.creator.full_name }}</span></div>
+        <div class="detail-row"><span class="label">Date de création</span><span class="value">{{ cloture.created_at.strftime('%d/%m/%Y %H:%M') }}</span></div>
+        <div class="detail-row"><span class="label">Statut</span><span class="value">{% if cloture.status == 'valide' %}<span class="o_badge success">Validée</span>{% else %}<span class="o_badge warning">Brouillon</span>{% endif %}</span></div>
+        {% if cloture.notes %}<div class="detail-row"><span class="label">Notes</span><span class="value">{{ cloture.notes }}</span></div>{% endif %}
+    </div>
+</div>
+{% endblock %}

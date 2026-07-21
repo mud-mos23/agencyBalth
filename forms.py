@@ -79,3 +79,17 @@ class FilterForm(FlaskForm):
         ('validated', 'Validé'),
         ('rejected', 'Rejeté')
     ], validators=[Optional()])
+
+class ClotureForm(FlaskForm):
+    date = DateField("Date", format='%Y-%m-%d', validators=[DataRequired()])
+    taux_change = FloatField("Taux de change (1 USD en CDF)", validators=[DataRequired(), NumberRange(min=1)])
+    solde_initial_usd = FloatField("Solde initial USD", validators=[Optional()])
+    solde_initial_cdf = FloatField("Solde initial CDF", validators=[Optional()])
+    ajout_initial_usd = FloatField("Ajout sur initial USD", validators=[Optional()])
+    ajout_initial_cdf = FloatField("Ajout sur initial CDF", validators=[Optional()])
+    retrait_initial_usd = FloatField("Retrait sur initial USD", validators=[Optional()])
+    retrait_initial_cdf = FloatField("Retrait sur initial CDF", validators=[Optional()])
+    excedent_swaps = FloatField("Excédent SWAPS (CDF)", validators=[Optional()])
+    excedent_bureau = FloatField("Excédent Bureau de change (CDF)", validators=[Optional()])
+    excedent_autres = FloatField("Excédent Autres (CDF)", validators=[Optional()])
+    notes = TextAreaField("Notes", validators=[Optional()])

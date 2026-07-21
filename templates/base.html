@@ -60,6 +60,11 @@
                 {% endif %}
                 {% if current_user.has_role('super_admin', 'admin_agence', 'comptable', 'secretaire') %}
                 <li class="menu-item">
+                    <a class="menu-link {{ 'active' if request.endpoint in ('cloture_list', 'cloture_new', 'cloture_detail') }}" href="{{ url_for('cloture_list') }}">
+                        <i class="bi bi-journal-check"></i> Clotures
+                    </a>
+                </li>
+                <li class="menu-item">
                     <a class="menu-link {{ 'active' if request.endpoint == 'accounting' }}" href="{{ url_for('accounting') }}">
                         <i class="bi bi-calculator"></i> Comptabilite
                     </a>
