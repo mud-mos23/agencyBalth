@@ -1004,6 +1004,11 @@ def init_db():
             conn.commit()
         except sqlite3.OperationalError:
             pass
+        try:
+            c.execute('ALTER TABLE clotures_journalieres ADD COLUMN guichetier_id INTEGER REFERENCES users(id)')
+            conn.commit()
+        except sqlite3.OperationalError:
+            pass
         conn.close()
     except Exception:
         pass
